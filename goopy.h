@@ -1,9 +1,11 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
-#include <stdlib.h>
+#include <stdio.h>
 
 // TODO: add dtype
+// All the members need to be explicitly own
 typedef struct {
   // pointer to the data
   int *data;
@@ -13,14 +15,22 @@ typedef struct {
   size_t *strides;
   // number of dimensions of the data
   size_t ndim;
+  // TODO: remove this workaround
+  bool owns;
 } array_t;
 
+// LOOK: Maybe introduce array views which do not own any memory
+// all the memory passed into a view will have to be externally managed
+
 // Array Initialisation Functions
-array_t init_array_with_data(int *data, size_t *shape, size_t ndim);
+array_t _init_array_with_data(int *data, size_t *shape, size_t ndim, bool owns);
+// #define INIT_ARRAY_WITH_DATA(data, shape, ndim)
+//   _init_array_with_data(data, shape, ndim, false)
+
 array_t init_array_with_zeros(size_t *shape, size_t ndim);
 array_t init_array_with_ones(size_t *shape, size_t ndim);
-// TODO: implement init_array_with_value({2, 2}, {1, 2}) -> [[1, 2], [1, 2]]
-// can pass in non-scalar values
+// TODO: maybe implement init_array_with_value({2, 2}, {1, 2})
+// -> [[1, 2], [1, 2]] can pass in non-scalar values
 array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value);
 array_t arange(int start, int stop, int step); // 1D function
 
@@ -31,3 +41,6 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset);
 // Utils
 void _calc_array_strides(array_t *arr);
 size_t _numel(size_t *shape, size_t ndim);
+
+// Cleanup Functions
+void deinit_array(array_t *arr);

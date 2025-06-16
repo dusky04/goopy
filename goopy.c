@@ -1,8 +1,7 @@
 #include "goopy.h"
 
 #include <math.h>
-#include <stddef.h>
-#include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,17 +16,23 @@ void _calc_array_strides(array_t *arr) {
   // stride is the number of bytes to skip over
   // to get to the next element in that dimension
   // for a one dimensional array, it is just the size of the element
-  arr->strides = malloc(sizeof(size_t) * arr->ndim);
   arr->strides[arr->ndim - 1] = 1;
   for (int i = arr->ndim - 2; i > -1; i--) {
     arr->strides[i] = arr->strides[i + 1] * arr->shape[i + 1];
   }
 }
 
-array_t init_array_with_data(int *data, size_t *shape, size_t ndim) {
+array_t _init_array_with_data(int *data, size_t *shape, size_t ndim,
+                              bool owns) {
   // TODO: Add a check for
   // number of elements in the data <= number of elements calculated from shape
-  array_t arr = {.data = data, .shape = shape, .ndim = ndim};
+  array_t arr;
+  arr.data = data;
+  arr.owns = owns;
+  arr.ndim = ndim;
+  arr.shape = malloc(sizeof(size_t) * ndim);
+  memcpy(arr.shape, shape, ndim * sizeof(size_t));
+  arr.strides = malloc(sizeof(size_t) * ndim);
   _calc_array_strides(&arr);
   return arr;
 }
@@ -54,28 +59,22 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
   printf("]\n");
 }
 
-array_t init_array_with_zeros(size_t *shape, size_t ndim) {
-  size_t num_elements = _numel(shape, ndim);
-  int *data = calloc(num_elements, sizeof(int));
-  return init_array_with_data(data, shape, ndim);
-}
-
 // LOOK: not a pretty function, see if something can be done
-// CLEAN THIS TWO FUNCTIONS
-array_t init_array_with_ones(size_t *shape, size_t ndim) {
-  size_t num_elements = _numel(shape, ndim);
-  int *data = malloc(num_elements * sizeof(int));
-  for (size_t i = 0; i < num_elements; i++)
-    data[i] = 1;
-  return init_array_with_data(data, shape, ndim);
-}
-
+// CHECK: if these 3 functions can be cleaned
 array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value) {
   size_t num_elements = _numel(shape, ndim);
   int *data = malloc(num_elements * sizeof(int));
   for (size_t i = 0; i < num_elements; i++)
     data[i] = value;
-  return init_array_with_data(data, shape, ndim);
+  return _init_array_with_data(data, shape, ndim, true);
+}
+
+array_t init_array_with_zeros(size_t *shape, size_t ndim) {
+  return init_array_with_scalar_value(shape, ndim, 0);
+}
+
+array_t init_array_with_ones(size_t *shape, size_t ndim) {
+  return init_array_with_scalar_value(shape, ndim, 0);
 }
 
 array_t arange(int start, int stop, int step) {
@@ -91,5 +90,13 @@ array_t arange(int start, int stop, int step) {
   for (int i = 0; i < num_elements; i++) {
     data[i] = start + (i * step);
   }
-  return init_array_with_data(data, (size_t[]){num_elements}, 1);
+  return _init_array_with_data(data, (size_t[]){num_elements}, 1, true);
+}
+
+// LOOK: issue of double free
+void deinit_array(array_t *arr) {
+  if (arr->owns)
+    free(arr->data);
+  free(arr->shape);
+  free(arr->strides);
 }
