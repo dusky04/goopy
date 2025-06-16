@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+// TODO: implement arena allocation for better ux
+
 // TODO: add dtype
 // All the members need to be explicitly own
 typedef struct {
@@ -33,6 +35,12 @@ array_t init_array_with_ones(size_t *shape, size_t ndim);
 // -> [[1, 2], [1, 2]] can pass in non-scalar values
 array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value);
 array_t arange(int start, int stop, int step); // 1D function
+
+// Arithmetic Functions - rn same shape
+array_t element_wise_add(array_t *a, array_t *b);
+array_t element_wise_sub(array_t *a, array_t *b);
+array_t element_wise_mul(array_t *a, array_t *b);
+array_t element_wise_div(array_t *a, array_t *b);
 
 // Formatting Functions
 void _print_array(array_t *arr, size_t cur_depth, size_t offset);

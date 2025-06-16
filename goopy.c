@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -91,6 +92,70 @@ array_t arange(int start, int stop, int step) {
     data[i] = start + (i * step);
   }
   return _init_array_with_data(data, (size_t[]){num_elements}, 1, true);
+}
+
+array_t element_wise_add(array_t *a, array_t *b) {
+  if (a->ndim != b->ndim ||
+      memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
+    fprintf(stderr,
+            "ERROR: Currently cannot add arrays with different shapes. "
+            "a->ndim=%zu, "
+            "b->ndim=%zu\n",
+            a->ndim, b->ndim);
+    exit(EXIT_FAILURE);
+  }
+  int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+  for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+    data[i] = a->data[i] + b->data[i];
+  return _init_array_with_data(data, a->shape, a->ndim, true);
+}
+
+array_t element_wise_sub(array_t *a, array_t *b) {
+  if (a->ndim != b->ndim ||
+      memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
+    fprintf(stderr,
+            "ERROR: Currently cannot add arrays with different shapes. "
+            "a->ndim=%zu, "
+            "b->ndim=%zu\n",
+            a->ndim, b->ndim);
+    exit(EXIT_FAILURE);
+  }
+  int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+  for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+    data[i] = a->data[i] - b->data[i];
+  return _init_array_with_data(data, a->shape, a->ndim, true);
+}
+
+array_t element_wise_mul(array_t *a, array_t *b) {
+  if (a->ndim != b->ndim ||
+      memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
+    fprintf(stderr,
+            "ERROR: Currently cannot add arrays with different shapes. "
+            "a->ndim=%zu, "
+            "b->ndim=%zu\n",
+            a->ndim, b->ndim);
+    exit(EXIT_FAILURE);
+  }
+  int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+  for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+    data[i] = a->data[i] * b->data[i];
+  return _init_array_with_data(data, a->shape, a->ndim, true);
+}
+
+array_t element_wise_div(array_t *a, array_t *b) {
+  if (a->ndim != b->ndim ||
+      memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
+    fprintf(stderr,
+            "ERROR: Currently cannot add arrays with different shapes. "
+            "a->ndim=%zu, "
+            "b->ndim=%zu\n",
+            a->ndim, b->ndim);
+    exit(EXIT_FAILURE);
+  }
+  int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+  for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+    data[i] = a->data[i] / b->data[i];
+  return _init_array_with_data(data, a->shape, a->ndim, true);
 }
 
 // LOOK: issue of double free
