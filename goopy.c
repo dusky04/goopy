@@ -75,7 +75,7 @@ array_t init_array_with_zeros(size_t *shape, size_t ndim) {
 }
 
 array_t init_array_with_ones(size_t *shape, size_t ndim) {
-  return init_array_with_scalar_value(shape, ndim, 0);
+  return init_array_with_scalar_value(shape, ndim, 1);
 }
 
 array_t arange(int start, int stop, int step) {
@@ -114,7 +114,7 @@ array_t element_wise_sub(array_t *a, array_t *b) {
   if (a->ndim != b->ndim ||
       memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
     fprintf(stderr,
-            "ERROR: Currently cannot add arrays with different shapes. "
+            "ERROR: Currently cannot subtract arrays with different shapes. "
             "a->ndim=%zu, "
             "b->ndim=%zu\n",
             a->ndim, b->ndim);
@@ -130,7 +130,7 @@ array_t element_wise_mul(array_t *a, array_t *b) {
   if (a->ndim != b->ndim ||
       memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
     fprintf(stderr,
-            "ERROR: Currently cannot add arrays with different shapes. "
+            "ERROR: Currently cannot multiple arrays with different shapes. "
             "a->ndim=%zu, "
             "b->ndim=%zu\n",
             a->ndim, b->ndim);
@@ -146,7 +146,7 @@ array_t element_wise_div(array_t *a, array_t *b) {
   if (a->ndim != b->ndim ||
       memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
     fprintf(stderr,
-            "ERROR: Currently cannot add arrays with different shapes. "
+            "ERROR: Currently cannot divide arrays with different shapes. "
             "a->ndim=%zu, "
             "b->ndim=%zu\n",
             a->ndim, b->ndim);
