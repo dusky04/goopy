@@ -1,14 +1,18 @@
-
 #include "goopy.h"
 
+#include <math.h>
+#include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-size_t numel(array_t *arr) {
-  size_t numElements = 1;
-  for (size_t i = 0; i < arr->ndim; i++)
-    numElements *= arr->shape[i];
-  return numElements;
+size_t _numel(size_t *shape, size_t ndim) {
+  size_t num_elements = 1;
+  for (size_t i = 0; i < ndim; i++)
+    num_elements *= shape[i];
+  return num_elements;
 }
+
 void _calc_array_strides(array_t *arr) {
   // stride is the number of bytes to skip over
   // to get to the next element in that dimension
@@ -20,7 +24,7 @@ void _calc_array_strides(array_t *arr) {
   }
 }
 
-array_t init_array_with_data(int *data, size_t shape[], size_t ndim) {
+array_t init_array_with_data(int *data, size_t *shape, size_t ndim) {
   // TODO: Add a check for
   // number of elements in the data <= number of elements calculated from shape
   array_t arr = {.data = data, .shape = shape, .ndim = ndim};
@@ -41,7 +45,6 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
     printf("]");
     return;
   }
-
   // we are the nth dimension, iterate over all the elements in this dimension
   printf("[");
   for (size_t i = 0; i < arr->shape[cur_depth]; i++) {
@@ -49,4 +52,44 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
     _print_array(arr, cur_depth + 1, new_offset);
   }
   printf("]\n");
+}
+
+array_t init_array_with_zeros(size_t *shape, size_t ndim) {
+  size_t num_elements = _numel(shape, ndim);
+  int *data = calloc(num_elements, sizeof(int));
+  return init_array_with_data(data, shape, ndim);
+}
+
+// LOOK: not a pretty function, see if something can be done
+// CLEAN THIS TWO FUNCTIONS
+array_t init_array_with_ones(size_t *shape, size_t ndim) {
+  size_t num_elements = _numel(shape, ndim);
+  int *data = malloc(num_elements * sizeof(int));
+  for (size_t i = 0; i < num_elements; i++)
+    data[i] = 1;
+  return init_array_with_data(data, shape, ndim);
+}
+
+array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value) {
+  size_t num_elements = _numel(shape, ndim);
+  int *data = malloc(num_elements * sizeof(int));
+  for (size_t i = 0; i < num_elements; i++)
+    data[i] = value;
+  return init_array_with_data(data, shape, ndim);
+}
+
+array_t arange(int start, int stop, int step) {
+  if (stop < start) {
+    fprintf(stderr,
+            "ERROR: 'stop' value (%d) must be greater than or equal to 'start' "
+            "value (%d) in arange().\n",
+            stop, start);
+  }
+
+  int num_elements = (int)ceil((float)(stop - start) / (float)step);
+  int *data = malloc(num_elements * sizeof(int));
+  for (int i = 0; i < num_elements; i++) {
+    data[i] = start + (i * step);
+  }
+  return init_array_with_data(data, (size_t[]){num_elements}, 1);
 }

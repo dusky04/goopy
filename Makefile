@@ -1,8 +1,8 @@
 cc = gcc
-CFLAGS = -Wall -Wextra -g
+CFLAGS = -Wall -Wextra -Werror -g
 
 main: main.c goopy.c goopy.h
-	$(cc) $(CFLAGS) $^ -o main
+	$(cc) $(CFLAGS) $^ -o $@ -lm
 
 
 clean:
