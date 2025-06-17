@@ -162,8 +162,8 @@ array_t element_wise_div(array_t *a, array_t *b) {
 
 // TODO: implement getting single element from a array to clean up this code
 // but VERY MUCH LATER DOWN the LINE
-void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
-                size_t offset_b, size_t offset_c) {
+static void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
+                       size_t offset_b, size_t offset_c) {
   size_t m = a->shape[a->ndim - 2];
   size_t n = a->shape[a->ndim - 1];
   size_t q = b->shape[b->ndim - 1];
@@ -188,37 +188,18 @@ void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
   }
 }
 
-void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
-             size_t offset_b, size_t offset_c, int depth) {
+static void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
+                    size_t offset_b, size_t offset_c, int depth) {
   if (depth == (int)c->ndim - 2) {
-    // printf("depth: %d\n", depth);
-    // printf("---------------------\n");
-    // PRINT_ARRAY(*c);
-    // printf("---------------------\n");
-    // printf("Offset a: %zu\n", offset_a);
-    // printf("Offset b: %zu\n", offset_b);
-    // printf("Offset c: %zu\n", offset_c);
     _matmul_2D(a, b, c, offset_a, offset_b, offset_c);
     return;
   }
 
   // we are at the nth dimension, move over every element in this dimension
   for (size_t i = 0; i < c->shape[depth]; i++) {
-    // size_t new_offset_a = i * a->strides[depth];
-    // size_t new_offset_b = i * b->strides[depth];
-    // size_t new_offset_c = i * c->strides[depth];
-
     offset_a += i * a->strides[depth];
     offset_b += i * b->strides[depth];
     offset_c += i * c->strides[depth];
-
-    // printf("---------------------\n");
-    // printf("Depth: %d\n", depth);
-    // printf("Offset a: %zu\n", offset_a);
-    // printf("Offset b: %zu\n", offset_b);
-    // printf("Offset c: %zu\n", offset_c);
-    // printf("---------------------\n");
-
     _matmul(a, b, c, offset_a, offset_b, offset_c, depth + 1);
   }
 }
@@ -239,14 +220,15 @@ array_t matmul(array_t *a, array_t *b) {
     exit(EXIT_FAILURE);
   }
   // calculate the new shape
-  size_t *out_shape = malloc(sizeof(size_t) * a->ndim);
+  size_t *c_shape = malloc(sizeof(size_t) * a->ndim);
   for (size_t i = 0; i < a->ndim - 2; i++)
-    out_shape[i] = a->shape[i];
-  out_shape[a->ndim - 2] = m;
-  out_shape[a->ndim - 1] = q;
-  array_t c = init_array_with_zeros(out_shape, a->ndim);
+    c_shape[i] = a->shape[i];
+  c_shape[a->ndim - 2] = m;
+  c_shape[a->ndim - 1] = q;
+  array_t c = init_array_with_zeros(c_shape, a->ndim);
 
   _matmul(a, b, &c, 0, 0, 0, 0);
+  free(c_shape);
   return c;
 }
 
