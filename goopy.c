@@ -197,10 +197,10 @@ static void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
 
   // we are at the nth dimension, move over every element in this dimension
   for (size_t i = 0; i < c->shape[depth]; i++) {
-    offset_a += i * a->strides[depth];
-    offset_b += i * b->strides[depth];
-    offset_c += i * c->strides[depth];
-    _matmul(a, b, c, offset_a, offset_b, offset_c, depth + 1);
+    size_t new_offset_a = offset_a + i * a->strides[depth];
+    size_t new_offset_b = offset_b + i * b->strides[depth];
+    size_t new_offset_c = offset_c + i * c->strides[depth];
+    _matmul(a, b, c, new_offset_a, new_offset_b, new_offset_c, depth + 1);
   }
 }
 
