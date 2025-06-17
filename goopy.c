@@ -178,7 +178,6 @@ void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
                     k * a->strides[a->ndim - 1];
         size_t bi = offset_b + k * b->strides[b->ndim - 2] +
                     j * b->strides[b->ndim - 1];
-        printf("ai: %zu, bi: %zu\n", ai, bi);
         sum += a->data[ai] * b->data[bi];
       }
 
@@ -187,27 +186,41 @@ void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
       c->data[ci] = sum;
     }
   }
-  printf("-------------------------------------\n");
 }
 
 void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
              size_t offset_b, size_t offset_c, int depth) {
   if (depth == (int)c->ndim - 2) {
-    printf("depth: %d\n", depth);
+    // printf("depth: %d\n", depth);
+    // printf("---------------------\n");
+    // PRINT_ARRAY(*c);
+    // printf("---------------------\n");
+    // printf("Offset a: %zu\n", offset_a);
+    // printf("Offset b: %zu\n", offset_b);
+    // printf("Offset c: %zu\n", offset_c);
     _matmul_2D(a, b, c, offset_a, offset_b, offset_c);
     return;
   }
 
   // we are at the nth dimension, move over every element in this dimension
   for (size_t i = 0; i < c->shape[depth]; i++) {
-    size_t new_offset_a = i * a->strides[depth];
-    size_t new_offset_b = i * b->strides[depth];
-    size_t new_offset_c = i * c->strides[depth];
+    // size_t new_offset_a = i * a->strides[depth];
+    // size_t new_offset_b = i * b->strides[depth];
+    // size_t new_offset_c = i * c->strides[depth];
 
-    _matmul(a, b, c, new_offset_a, new_offset_b, new_offset_c, depth + 1);
-    // break;
+    offset_a += i * a->strides[depth];
+    offset_b += i * b->strides[depth];
+    offset_c += i * c->strides[depth];
+
+    // printf("---------------------\n");
+    // printf("Depth: %d\n", depth);
+    // printf("Offset a: %zu\n", offset_a);
+    // printf("Offset b: %zu\n", offset_b);
+    // printf("Offset c: %zu\n", offset_c);
+    // printf("---------------------\n");
+
+    _matmul(a, b, c, offset_a, offset_b, offset_c, depth + 1);
   }
-  return;
 }
 
 array_t matmul(array_t *a, array_t *b) {
@@ -231,13 +244,10 @@ array_t matmul(array_t *a, array_t *b) {
     out_shape[i] = a->shape[i];
   out_shape[a->ndim - 2] = m;
   out_shape[a->ndim - 1] = q;
-  array_t out = init_array_with_zeros(out_shape, a->ndim);
+  array_t c = init_array_with_zeros(out_shape, a->ndim);
 
-  _matmul(a, b, &out, 0, 0, 0, 0);
-  // allocated the result data buffer
-  // int *out_data = malloc(sizeof(int) * ());
-  //
-  return out;
+  _matmul(a, b, &c, 0, 0, 0, 0);
+  return c;
 }
 
 // LOOK: issue of double free
