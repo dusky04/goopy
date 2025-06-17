@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -161,7 +162,8 @@ array_t element_wise_div(array_t *a, array_t *b) {
 
 // TODO: implement getting single element from a array to clean up this code
 // but VERY MUCH LATER DOWN the LINE
-void _matmul_2D(array_t *a, array_t *b, array_t *out) {
+void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
+                size_t offset_b, size_t offset_c) {
   size_t m = a->shape[a->ndim - 2];
   size_t n = a->shape[a->ndim - 1];
   size_t q = b->shape[b->ndim - 1];
@@ -172,45 +174,71 @@ void _matmul_2D(array_t *a, array_t *b, array_t *out) {
     for (size_t j = 0; j < q; j++) {
       int sum = 0;
       for (size_t k = 0; k < n; k++) {
-        int ai =
-            a->data[i * a->strides[a->ndim - 2] + k * a->strides[a->ndim - 1]];
-        int bi =
-            b->data[k * b->strides[b->ndim - 2] + j * b->strides[b->ndim - 1]];
-        sum += ai * bi;
+        size_t ai = offset_a + i * a->strides[a->ndim - 2] +
+                    k * a->strides[a->ndim - 1];
+        size_t bi = offset_b + k * b->strides[b->ndim - 2] +
+                    j * b->strides[b->ndim - 1];
+        printf("ai: %zu, bi: %zu\n", ai, bi);
+        sum += a->data[ai] * b->data[bi];
       }
-      out->data[i * out->strides[out->ndim - 2] +
-                j * out->strides[out->ndim - 1]] = sum;
+
+      size_t ci =
+          offset_c + i * c->strides[c->ndim - 2] + j * c->strides[c->ndim - 1];
+      c->data[ci] = sum;
     }
   }
+  printf("-------------------------------------\n");
 }
 
-// array_t matmul(array_t *a, array_t *b) {
-//   // shape of cols of mat a should match shape of rows of mat b
-//   size_t m = a->shape[a->ndim - 2];
-//   size_t n = a->shape[a->ndim - 1];
-//   size_t p = b->shape[b->ndim - 2];
-//   size_t q = b->shape[b->ndim - 1];
+void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
+             size_t offset_b, size_t offset_c, int depth) {
+  if (depth == (int)c->ndim - 2) {
+    printf("depth: %d\n", depth);
+    _matmul_2D(a, b, c, offset_a, offset_b, offset_c);
+    return;
+  }
 
-//   if (n != p) {
-//     fprintf(stderr,
-//             "ERROR: Cannot multiply matrices: number of columns in the first
-//             " "matrix (%zu) does not match number of rows in the second
-//             matrix "
-//             "(%zu).\n",
-//             n, p);
-//     exit(EXIT_FAILURE);
-//   }
-//   // calculate the new shape
-//   size_t *out_shape = malloc(sizeof(size_t) * a->ndim);
-//   for (size_t i = 0; i < a->ndim - 2; i++)
-//     out_shape[i] = a->shape[i];
-//   out_shape[a->ndim - 2] = m;
-//   out_shape[a->ndim - 1] = q;
-//   array_t out = init_array_with_zeros(out_shape, a->ndim);
+  // we are at the nth dimension, move over every element in this dimension
+  for (size_t i = 0; i < c->shape[depth]; i++) {
+    size_t new_offset_a = i * a->strides[depth];
+    size_t new_offset_b = i * b->strides[depth];
+    size_t new_offset_c = i * c->strides[depth];
 
-//   // allocated the result data buffer
-//   // int *out_data = malloc(sizeof(int) * ());
-// }
+    _matmul(a, b, c, new_offset_a, new_offset_b, new_offset_c, depth + 1);
+    // break;
+  }
+  return;
+}
+
+array_t matmul(array_t *a, array_t *b) {
+  // shape of cols of mat a should match shape of rows of mat b
+  size_t m = a->shape[a->ndim - 2];
+  size_t n = a->shape[a->ndim - 1];
+  size_t p = b->shape[b->ndim - 2];
+  size_t q = b->shape[b->ndim - 1];
+
+  if (n != p) {
+    fprintf(stderr,
+            "ERROR: Cannot multiply matrices: number of columns in the first"
+            "matrix (%zu) does not match number of rows in the secondmatrix "
+            "(%zu).\n",
+            n, p);
+    exit(EXIT_FAILURE);
+  }
+  // calculate the new shape
+  size_t *out_shape = malloc(sizeof(size_t) * a->ndim);
+  for (size_t i = 0; i < a->ndim - 2; i++)
+    out_shape[i] = a->shape[i];
+  out_shape[a->ndim - 2] = m;
+  out_shape[a->ndim - 1] = q;
+  array_t out = init_array_with_zeros(out_shape, a->ndim);
+
+  _matmul(a, b, &out, 0, 0, 0, 0);
+  // allocated the result data buffer
+  // int *out_data = malloc(sizeof(int) * ());
+  //
+  return out;
+}
 
 // LOOK: issue of double free
 void deinit_array(array_t *arr) {

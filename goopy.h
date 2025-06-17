@@ -42,7 +42,8 @@ array_t element_wise_sub(array_t *a, array_t *b);
 array_t element_wise_mul(array_t *a, array_t *b);
 array_t element_wise_div(array_t *a, array_t *b);
 
-void _matmul_2D(array_t *a, array_t *b, array_t *out);
+void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
+                size_t offset_b, size_t offset_c);
 array_t matmul(array_t *a, array_t *b);
 
 // Formatting Functions
