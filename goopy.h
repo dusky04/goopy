@@ -42,6 +42,9 @@ array_t element_wise_sub(array_t *a, array_t *b);
 array_t element_wise_mul(array_t *a, array_t *b);
 array_t element_wise_div(array_t *a, array_t *b);
 
+void _matmul_2D(array_t *a, array_t *b, array_t *out);
+array_t matmul(array_t *a, array_t *b);
+
 // Formatting Functions
 void _print_array(array_t *arr, size_t cur_depth, size_t offset);
 #define PRINT_ARRAY(arr) _print_array(&arr, 0, 0);

@@ -94,6 +94,7 @@ array_t arange(int start, int stop, int step) {
   return _init_array_with_data(data, (size_t[]){num_elements}, 1, true);
 }
 
+// TODO: factor out this shape comparison function
 array_t element_wise_add(array_t *a, array_t *b) {
   if (a->ndim != b->ndim ||
       memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
@@ -157,6 +158,59 @@ array_t element_wise_div(array_t *a, array_t *b) {
     data[i] = a->data[i] / b->data[i];
   return _init_array_with_data(data, a->shape, a->ndim, true);
 }
+
+// TODO: implement getting single element from a array to clean up this code
+// but VERY MUCH LATER DOWN the LINE
+void _matmul_2D(array_t *a, array_t *b, array_t *out) {
+  size_t m = a->shape[a->ndim - 2];
+  size_t n = a->shape[a->ndim - 1];
+  size_t q = b->shape[b->ndim - 1];
+
+  // iterate over the rows of matrix a
+  for (size_t i = 0; i < m; i++) {
+    // iterate over the columns of matrix b
+    for (size_t j = 0; j < q; j++) {
+      int sum = 0;
+      for (size_t k = 0; k < n; k++) {
+        int ai =
+            a->data[i * a->strides[a->ndim - 2] + k * a->strides[a->ndim - 1]];
+        int bi =
+            b->data[k * b->strides[b->ndim - 2] + j * b->strides[b->ndim - 1]];
+        sum += ai * bi;
+      }
+      out->data[i * out->strides[out->ndim - 2] +
+                j * out->strides[out->ndim - 1]] = sum;
+    }
+  }
+}
+
+// array_t matmul(array_t *a, array_t *b) {
+//   // shape of cols of mat a should match shape of rows of mat b
+//   size_t m = a->shape[a->ndim - 2];
+//   size_t n = a->shape[a->ndim - 1];
+//   size_t p = b->shape[b->ndim - 2];
+//   size_t q = b->shape[b->ndim - 1];
+
+//   if (n != p) {
+//     fprintf(stderr,
+//             "ERROR: Cannot multiply matrices: number of columns in the first
+//             " "matrix (%zu) does not match number of rows in the second
+//             matrix "
+//             "(%zu).\n",
+//             n, p);
+//     exit(EXIT_FAILURE);
+//   }
+//   // calculate the new shape
+//   size_t *out_shape = malloc(sizeof(size_t) * a->ndim);
+//   for (size_t i = 0; i < a->ndim - 2; i++)
+//     out_shape[i] = a->shape[i];
+//   out_shape[a->ndim - 2] = m;
+//   out_shape[a->ndim - 1] = q;
+//   array_t out = init_array_with_zeros(out_shape, a->ndim);
+
+//   // allocated the result data buffer
+//   // int *out_data = malloc(sizeof(int) * ());
+// }
 
 // LOOK: issue of double free
 void deinit_array(array_t *arr) {
