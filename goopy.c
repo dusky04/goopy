@@ -232,8 +232,8 @@ array_t matmul(array_t *a, array_t *b) {
 
   if (n != p) {
     fprintf(stderr,
-            "ERROR: Cannot multiply matrices: number of columns in the first"
-            "matrix (%zu) does not match number of rows in the secondmatrix "
+            "ERROR: Cannot multiply matrices: number of columns in the first "
+            "matrix (%zu) does not match number of rows in the second matrix "
             "(%zu).\n",
             n, p);
     exit(EXIT_FAILURE);
