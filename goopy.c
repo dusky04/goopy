@@ -14,6 +14,17 @@ size_t _numel(size_t *shape, size_t ndim) {
   return num_elements;
 }
 
+#define BINARY_OP(a, b, c, op)                                                 \
+  do {                                                                         \
+    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)                     \
+      c[i] = a->data[i] op b->data[i];                                         \
+  } while (false)
+
+bool _check_equal_shapes(array_t *a, array_t *b) {
+  return (a->ndim == b->ndim &&
+          memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) == 0);
+}
+
 void _calc_array_strides(array_t *arr) {
   // stride is the number of bytes to skip over
   // to get to the next element in that dimension
@@ -27,7 +38,8 @@ void _calc_array_strides(array_t *arr) {
 array_t _init_array_with_data(int *data, size_t *shape, size_t ndim,
                               bool owns) {
   // TODO: Add a check for
-  // number of elements in the data <= number of elements calculated from shape
+  // number of elements in the data <= number of elements calculated
+  // from shape
   array_t arr;
   arr.data = data;
   arr.owns = owns;
@@ -53,7 +65,8 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
     printf("]");
     return;
   }
-  // we are the nth dimension, iterate over all the elements in this dimension
+  // we are the nth dimension, iterate over all the elements in this
+  // dimension
   printf("[");
   for (size_t i = 0; i < arr->shape[cur_depth]; i++) {
     size_t new_offset = offset + (i * arr->strides[cur_depth]);
@@ -83,7 +96,8 @@ array_t init_array_with_ones(size_t *shape, size_t ndim) {
 array_t arange(int start, int stop, int step) {
   if (stop < start) {
     fprintf(stderr,
-            "ERROR: 'stop' value (%d) must be greater than or equal to 'start' "
+            "ERROR: 'stop' value (%d) must be greater than or equal to "
+            "'start' "
             "value (%d) in arange().\n",
             stop, start);
   }
@@ -96,10 +110,8 @@ array_t arange(int start, int stop, int step) {
   return _init_array_with_data(data, (size_t[]){num_elements}, 1, true);
 }
 
-// TODO: factor out this shape comparison function
 array_t element_wise_add(array_t *a, array_t *b) {
-  if (a->ndim != b->ndim ||
-      memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
+  if (!_check_equal_shapes(a, b)) {
     fprintf(stderr,
             "ERROR: Currently cannot add arrays with different shapes. "
             "a->ndim=%zu, "
@@ -108,46 +120,42 @@ array_t element_wise_add(array_t *a, array_t *b) {
     exit(EXIT_FAILURE);
   }
   int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-  for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-    data[i] = a->data[i] + b->data[i];
+  BINARY_OP(a, b, data, +);
   return _init_array_with_data(data, a->shape, a->ndim, true);
 }
 
 array_t element_wise_sub(array_t *a, array_t *b) {
-  if (a->ndim != b->ndim ||
-      memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
+  if (!_check_equal_shapes(a, b)) {
     fprintf(stderr,
-            "ERROR: Currently cannot subtract arrays with different shapes. "
+            "ERROR: Currently cannot subtract arrays with different "
+            "shapes. "
             "a->ndim=%zu, "
             "b->ndim=%zu\n",
             a->ndim, b->ndim);
     exit(EXIT_FAILURE);
   }
   int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-  for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-    data[i] = a->data[i] - b->data[i];
+  BINARY_OP(a, b, data, -);
   return _init_array_with_data(data, a->shape, a->ndim, true);
 }
 
 array_t element_wise_mul(array_t *a, array_t *b) {
-  if (a->ndim != b->ndim ||
-      memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
+  if (!_check_equal_shapes(a, b)) {
     fprintf(stderr,
-            "ERROR: Currently cannot multiple arrays with different shapes. "
+            "ERROR: Currently cannot multiple arrays with different "
+            "shapes. "
             "a->ndim=%zu, "
             "b->ndim=%zu\n",
             a->ndim, b->ndim);
     exit(EXIT_FAILURE);
   }
   int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-  for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-    data[i] = a->data[i] * b->data[i];
+  BINARY_OP(a, b, data, *);
   return _init_array_with_data(data, a->shape, a->ndim, true);
 }
 
 array_t element_wise_div(array_t *a, array_t *b) {
-  if (a->ndim != b->ndim ||
-      memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) != 0) {
+  if (!_check_equal_shapes(a, b)) {
     fprintf(stderr,
             "ERROR: Currently cannot divide arrays with different shapes. "
             "a->ndim=%zu, "
@@ -156,13 +164,12 @@ array_t element_wise_div(array_t *a, array_t *b) {
     exit(EXIT_FAILURE);
   }
   int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-  for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-    data[i] = a->data[i] / b->data[i];
+  BINARY_OP(a, b, data, /);
   return _init_array_with_data(data, a->shape, a->ndim, true);
 }
 
-// TODO: implement getting single element from a array to clean up this code
-// but VERY MUCH LATER DOWN the LINE
+// TODO: implement getting single element from a array to clean up this
+// code but VERY MUCH LATER DOWN the LINE
 static void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
                        size_t offset_b, size_t offset_c) {
   size_t m = a->shape[a->ndim - 2];
@@ -196,7 +203,8 @@ static void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
     return;
   }
 
-  // we are at the nth dimension, move over every element in this dimension
+  // we are at the nth dimension, move over every element in this
+  // dimension
   for (size_t i = 0; i < c->shape[depth]; i++) {
     size_t new_offset_a = offset_a + i * a->strides[depth];
     size_t new_offset_b = offset_b + i * b->strides[depth];
@@ -215,8 +223,10 @@ array_t matmul(array_t *a, array_t *b) {
 
   if (n != p) {
     fprintf(stderr,
-            "ERROR: Cannot multiply matrices: number of columns in the first "
-            "matrix (%zu) does not match number of rows in the second matrix "
+            "ERROR: Cannot multiply matrices: number of columns in the "
+            "first "
+            "matrix (%zu) does not match number of rows in the second "
+            "matrix "
             "(%zu).\n",
             n, p);
     exit(EXIT_FAILURE);
@@ -293,3 +303,5 @@ void deinit_array(array_t *arr) {
   free(arr->shape);
   free(arr->strides);
 }
+
+#undef BINARY_OP

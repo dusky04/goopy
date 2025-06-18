@@ -56,6 +56,7 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset);
 // Utils
 void _calc_array_strides(array_t *arr);
 size_t _numel(size_t *shape, size_t ndim);
+bool _check_equal_shapes(array_t *a, array_t *b);
 
 // Cleanup Functions
 void deinit_array(array_t *arr);
