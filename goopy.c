@@ -254,52 +254,211 @@ array_t element_wise_add(array_t *a, array_t *b) {
   free(view_b.shape);
   free(view_b.strides);
   free(c_shape);
-
   return c;
 }
 
+void _sub(array_t *a, array_t *b, array_t *c, int depth, size_t offset_a,
+          size_t offset_b, size_t offset_c) {
+  if (depth == (int)c->ndim - 1) {
+    for (size_t i = 0; i < c->shape[depth]; i++) {
+      size_t base_a = offset_a;
+      if (a->shape[depth] != 1)
+        base_a += a->strides[depth] * i;
+
+      size_t base_b = offset_b;
+      if (b->shape[depth] != 1)
+        base_b += b->strides[depth] * i;
+
+      size_t base_c = offset_c + (c->strides[depth] * i);
+
+      c->data[base_c] = a->data[base_a] - b->data[base_b];
+    }
+    return;
+  }
+
+  // we are at the nth dimension iterate over all the elements
+  for (size_t i = 0; i < c->shape[depth]; i++) {
+    size_t new_offset_a = offset_a;
+    if (a->shape[depth] != 1)
+      new_offset_a += i * a->strides[depth];
+
+    size_t new_offset_b = offset_b;
+    if (b->shape[depth] != 1)
+      new_offset_b += i * b->strides[depth];
+
+    size_t new_offset_c = offset_c + (i * c->strides[depth]);
+
+    _sub(a, b, c, depth + 1, new_offset_a, new_offset_b, new_offset_c);
+  }
+}
+
 array_t element_wise_sub(array_t *a, array_t *b) {
-  if (!_check_equal_shapes(a, b)) {
-    fprintf(stderr,
-            "ERROR: Currently cannot subtract arrays with different "
-            "shapes. "
-            "a->ndim=%zu, "
-            "b->ndim=%zu\n",
-            a->ndim, b->ndim);
+  if (_check_equal_shapes(a, b)) {
+    int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+      data[i] = a->data[i] + b->data[i];
+    return _init_array_with_data(data, a->shape, a->ndim, true);
+  }
+
+  if (!_check_broadcastable_shapes(a, b)) {
+    fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
+                    "broadcast together.\n");
     exit(EXIT_FAILURE);
   }
-  int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-  BINARY_OP(a, b, data, -);
-  return _init_array_with_data(data, a->shape, a->ndim, true);
+
+  size_t c_ndim = MAX(a->ndim, b->ndim);
+  size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
+
+  array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
+  array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
+
+  int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
+  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true);
+
+  _sub(a, b, &c, 0, 0, 0, 0);
+
+  free(view_a.shape);
+  free(view_a.strides);
+  free(view_b.shape);
+  free(view_b.strides);
+  free(c_shape);
+  return c;
+}
+
+void _mul(array_t *a, array_t *b, array_t *c, int depth, size_t offset_a,
+          size_t offset_b, size_t offset_c) {
+  if (depth == (int)c->ndim - 1) {
+    for (size_t i = 0; i < c->shape[depth]; i++) {
+      size_t base_a = offset_a;
+      if (a->shape[depth] != 1)
+        base_a += a->strides[depth] * i;
+
+      size_t base_b = offset_b;
+      if (b->shape[depth] != 1)
+        base_b += b->strides[depth] * i;
+
+      size_t base_c = offset_c + (c->strides[depth] * i);
+
+      c->data[base_c] = a->data[base_a] * b->data[base_b];
+    }
+    return;
+  }
+
+  // we are at the nth dimension iterate over all the elements
+  for (size_t i = 0; i < c->shape[depth]; i++) {
+    size_t new_offset_a = offset_a;
+    if (a->shape[depth] != 1)
+      new_offset_a += i * a->strides[depth];
+
+    size_t new_offset_b = offset_b;
+    if (b->shape[depth] != 1)
+      new_offset_b += i * b->strides[depth];
+
+    size_t new_offset_c = offset_c + (i * c->strides[depth]);
+
+    _mul(a, b, c, depth + 1, new_offset_a, new_offset_b, new_offset_c);
+  }
 }
 
 array_t element_wise_mul(array_t *a, array_t *b) {
-  if (!_check_equal_shapes(a, b)) {
-    fprintf(stderr,
-            "ERROR: Currently cannot multiple arrays with different "
-            "shapes. "
-            "a->ndim=%zu, "
-            "b->ndim=%zu\n",
-            a->ndim, b->ndim);
+  if (_check_equal_shapes(a, b)) {
+    int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+      data[i] = a->data[i] + b->data[i];
+    return _init_array_with_data(data, a->shape, a->ndim, true);
+  }
+
+  if (!_check_broadcastable_shapes(a, b)) {
+    fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
+                    "broadcast together.\n");
     exit(EXIT_FAILURE);
   }
-  int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-  BINARY_OP(a, b, data, *);
-  return _init_array_with_data(data, a->shape, a->ndim, true);
+
+  size_t c_ndim = MAX(a->ndim, b->ndim);
+  size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
+
+  array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
+  array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
+
+  int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
+  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true);
+
+  _mul(a, b, &c, 0, 0, 0, 0);
+
+  free(view_a.shape);
+  free(view_a.strides);
+  free(view_b.shape);
+  free(view_b.strides);
+  free(c_shape);
+  return c;
+}
+
+static void _div(array_t *a, array_t *b, array_t *c, int depth, size_t offset_a,
+                 size_t offset_b, size_t offset_c) {
+  if (depth == (int)c->ndim - 1) {
+    for (size_t i = 0; i < c->shape[depth]; i++) {
+      size_t base_a = offset_a;
+      if (a->shape[depth] != 1)
+        base_a += a->strides[depth] * i;
+
+      size_t base_b = offset_b;
+      if (b->shape[depth] != 1)
+        base_b += b->strides[depth] * i;
+
+      size_t base_c = offset_c + (c->strides[depth] * i);
+
+      c->data[base_c] = a->data[base_a] / b->data[base_b];
+    }
+    return;
+  }
+
+  // we are at the nth dimension iterate over all the elements
+  for (size_t i = 0; i < c->shape[depth]; i++) {
+    size_t new_offset_a = offset_a;
+    if (a->shape[depth] != 1)
+      new_offset_a += i * a->strides[depth];
+
+    size_t new_offset_b = offset_b;
+    if (b->shape[depth] != 1)
+      new_offset_b += i * b->strides[depth];
+
+    size_t new_offset_c = offset_c + (i * c->strides[depth]);
+
+    _div(a, b, c, depth + 1, new_offset_a, new_offset_b, new_offset_c);
+  }
 }
 
 array_t element_wise_div(array_t *a, array_t *b) {
-  if (!_check_equal_shapes(a, b)) {
-    fprintf(stderr,
-            "ERROR: Currently cannot divide arrays with different shapes. "
-            "a->ndim=%zu, "
-            "b->ndim=%zu\n",
-            a->ndim, b->ndim);
+  if (_check_equal_shapes(a, b)) {
+    int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+      data[i] = a->data[i] + b->data[i];
+    return _init_array_with_data(data, a->shape, a->ndim, true);
+  }
+
+  if (!_check_broadcastable_shapes(a, b)) {
+    fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
+                    "broadcast together.\n");
     exit(EXIT_FAILURE);
   }
-  int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-  BINARY_OP(a, b, data, /);
-  return _init_array_with_data(data, a->shape, a->ndim, true);
+
+  size_t c_ndim = MAX(a->ndim, b->ndim);
+  size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
+
+  array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
+  array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
+
+  int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
+  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true);
+
+  _div(a, b, &c, 0, 0, 0, 0);
+
+  free(view_a.shape);
+  free(view_a.strides);
+  free(view_b.shape);
+  free(view_b.strides);
+  free(c_shape);
+  return c;
 }
 
 // TODO: implement getting single element from a array to clean up this

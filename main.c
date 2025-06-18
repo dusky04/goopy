@@ -14,6 +14,6 @@ int main() {
   PRINT_ARRAY(b);
 
   // array_t c = init_array_with_zeros((size_t[]){3, 2, 3}, 3);
-  array_t c = element_wise_add(&a, &b);
+  array_t c = element_wise_div(&a, &b);
   PRINT_ARRAY(c);
 }
