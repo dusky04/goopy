@@ -14,6 +14,9 @@ size_t _numel(size_t *shape, size_t ndim) {
   return num_elements;
 }
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 #define BINARY_OP(a, b, c, op)                                                 \
   do {                                                                         \
     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)                     \
@@ -23,6 +26,14 @@ size_t _numel(size_t *shape, size_t ndim) {
 bool _check_equal_shapes(array_t *a, array_t *b) {
   return (a->ndim == b->ndim &&
           memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) == 0);
+}
+
+bool _check_broadcastable_shapes(array_t *a, array_t *b) {
+  for (size_t i = 0; i < MIN(a->ndim, b->ndim); i++) {
+    if (!(a->shape[i] == b->shape[i] || a->shape[i] == 1 || b->shape[i] == 1))
+      return false;
+  }
+  return true;
 }
 
 void _calc_array_strides(array_t *arr) {
@@ -48,6 +59,21 @@ array_t _init_array_with_data(int *data, size_t *shape, size_t ndim,
   memcpy(arr.shape, shape, ndim * sizeof(size_t));
   arr.strides = malloc(sizeof(size_t) * ndim);
   _calc_array_strides(&arr);
+  return arr;
+}
+
+array_t _init_array_with_data_and_strides(int *data, size_t *shape,
+                                          size_t *strides, size_t ndim,
+                                          bool owns) {
+  array_t arr;
+  arr.data = data;
+  arr.owns = owns;
+  arr.ndim = ndim;
+  arr.shape = malloc(sizeof(size_t) * ndim);
+  memcpy(arr.shape, shape, ndim * sizeof(size_t));
+  arr.strides = malloc(sizeof(size_t) * ndim);
+  // _calc_array_strides(&arr);
+  memcpy(arr.strides, strides, ndim * sizeof(size_t));
   return arr;
 }
 
@@ -110,6 +136,7 @@ array_t arange(int start, int stop, int step) {
   return _init_array_with_data(data, (size_t[]){num_elements}, 1, true);
 }
 
+// TODO: implement an efficient broadcasting algorithm
 array_t element_wise_add(array_t *a, array_t *b) {
   if (!_check_equal_shapes(a, b)) {
     fprintf(stderr,
@@ -117,11 +144,52 @@ array_t element_wise_add(array_t *a, array_t *b) {
             "a->ndim=%zu, "
             "b->ndim=%zu\n",
             a->ndim, b->ndim);
+    // exit(EXIT_FAILURE);
+  } else if (!_check_broadcastable_shapes(a, b)) {
+    fprintf(stderr,
+            "ERROR: Arrays are not broadcastable for addition. "
+            "Shapes do not match or cannot be broadcasted. "
+            "a->ndim=%zu, b->ndim=%zu\n",
+            a->ndim, b->ndim);
     exit(EXIT_FAILURE);
   }
+
+  // calculate the resultant broadcasted shape
+  size_t *new_shape = calloc(MAX(a->ndim, b->ndim), sizeof(size_t));
+  for (size_t i = 0; i < MAX(a->ndim, b->ndim); i++) {
+    if (i < MIN(a->ndim, b->ndim)) {
+      new_shape[i] = MAX(a->shape[i], b->shape[i]);
+    } else {
+      if (a->ndim > b->ndim) {
+        new_shape[i] = a->shape[i];
+      } else {
+        new_shape[i] = b->shape[i];
+      }
+    }
+  }
+
+  size_t *new_strides = calloc(MAX(a->ndim, b->ndim), sizeof(size_t));
+  for (size_t i = 0; i < MIN(a->ndim, b->ndim); i++) {
+    if (a->ndim > b->ndim) {
+      new_strides[i] = a->strides[i];
+    } else {
+      new_strides[i] = b->strides[i];
+    }
+  }
+  new_strides[0] = 0;
+
+  for (size_t i = 0; i < MAX(a->ndim, b->ndim); i++)
+    printf("%zu\n", new_shape[i]);
+
+  for (size_t i = 0; i < MAX(a->ndim, b->ndim); i++)
+    printf("%zu\n", new_strides[i]);
+
   int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-  BINARY_OP(a, b, data, +);
-  return _init_array_with_data(data, a->shape, a->ndim, true);
+  // BINARY_OP(a, b, data, +)
+  for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+    data[i] = a->data[i] + b->data[i * 0];
+  return _init_array_with_data_and_strides(data, new_shape, new_strides,
+                                           MAX(a->ndim, b->ndim), true);
 }
 
 array_t element_wise_sub(array_t *a, array_t *b) {
