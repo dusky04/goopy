@@ -17,30 +17,6 @@ size_t _numel(size_t *shape, size_t ndim) {
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-array_t *_get_smaller_dims_array(array_t *a, array_t *b) {
-  if (b->ndim < a->ndim)
-    return b;
-  else if (a->ndim < b->ndim)
-    return a;
-  // dimensions are same but each element in the shape can differ
-  return memcmp(a->shape, b->shape, sizeof(size_t) * a->ndim) > 0 ? b : a;
-}
-
-array_t *_get_larger_dims_array(array_t *a, array_t *b) {
-  if (b->ndim > a->ndim)
-    return b;
-  else if (a->ndim > b->ndim)
-    return a;
-  // dimensions are same but each element in the shape can differ
-  return memcmp(a->shape, b->shape, sizeof(size_t) * a->ndim) < 0 ? b : a;
-}
-
-#define BINARY_OP(a, b, c, op)                                                 \
-  do {                                                                         \
-    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)                     \
-      c[i] = a->data[i] op b->data[i];                                         \
-  } while (false)
-
 bool _check_equal_shapes(array_t *a, array_t *b) {
   return (a->ndim == b->ndim &&
           memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) == 0);
