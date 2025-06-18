@@ -46,7 +46,8 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
     // dimension small enough that we can print each element
     printf("[");
     for (size_t i = 0; i < arr->shape[cur_depth]; i++) {
-      size_t cur_offset = i + (arr->strides[cur_depth] * offset);
+      // size_t cur_offset = i + (arr->strides[cur_depth] * offset);
+      size_t cur_offset = offset + (arr->strides[cur_depth] * i);
       printf("%d ", arr->data[cur_offset]);
     }
     printf("]");

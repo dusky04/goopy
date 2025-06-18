@@ -7,8 +7,9 @@ int main() {
 
   // TESTCASE - tranpose()
 
-  array_t a = arange(1, 7, 1);
-  reshape(&a, (size_t[]){3, 2}, 2);
+  array_t a = arange(1, 25, 1);
+  PRINT_ARRAY(a);
+  reshape(&a, (size_t[]){4, 3, 2, 1}, 4);
   PRINT_ARRAY(a);
   printf("\nBefore transpose shape: ");
   for (size_t i = 0; i < a.ndim; i++)
