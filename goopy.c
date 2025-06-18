@@ -17,6 +17,24 @@ size_t _numel(size_t *shape, size_t ndim) {
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+array_t *_get_smaller_dims_array(array_t *a, array_t *b) {
+  if (b->ndim < a->ndim)
+    return b;
+  else if (a->ndim < b->ndim)
+    return a;
+  // dimensions are same but each element in the shape can differ
+  return memcmp(a->shape, b->shape, sizeof(size_t) * a->ndim) > 0 ? b : a;
+}
+
+array_t *_get_larger_dims_array(array_t *a, array_t *b) {
+  if (b->ndim > a->ndim)
+    return b;
+  else if (a->ndim > b->ndim)
+    return a;
+  // dimensions are same but each element in the shape can differ
+  return memcmp(a->shape, b->shape, sizeof(size_t) * a->ndim) < 0 ? b : a;
+}
+
 #define BINARY_OP(a, b, c, op)                                                 \
   do {                                                                         \
     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)                     \
@@ -28,8 +46,10 @@ bool _check_equal_shapes(array_t *a, array_t *b) {
           memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) == 0);
 }
 
+bool _check_equal_ndims(array_t *a, array_t *b) { return a->ndim == b->ndim; }
+
 bool _check_broadcastable_shapes(array_t *a, array_t *b) {
-  for (size_t i = 0; i < MIN(a->ndim, b->ndim); i++) {
+  for (int i = MIN(a->ndim, b->ndim) - 1; i > -1; i--) {
     if (!(a->shape[i] == b->shape[i] || a->shape[i] == 1 || b->shape[i] == 1))
       return false;
   }
@@ -136,60 +156,78 @@ array_t arange(int start, int stop, int step) {
   return _init_array_with_data(data, (size_t[]){num_elements}, 1, true);
 }
 
+void _add(array_t *a, array_t *b, array_t *c, int depth, size_t offset_a,
+          size_t offset_b, size_t offset_c) {
+  if (depth == c->ndim - 1) {
+    for (size_t i = 0; i < c->shape[depth]; i++) {
+      size_t base_a = offset_a;
+      if (a->shape[depth] != 1)
+        base_a += a->strides[depth] * i;
+
+      size_t base_b = offset_b;
+      if (b->shape[depth] != 1)
+        base_b += b->strides[depth] * i;
+
+      size_t base_c = offset_c + (c->strides[depth] * i);
+
+      c->data[base_c] = a->data[base_a] + b->data[base_b];
+    }
+    return;
+  }
+
+  // we are at the nth dimension iterate over all the elements
+  for (size_t i = 0; i < c->shape[depth]; i++) {
+    size_t new_offset_a = offset_a;
+    if (a->shape[depth] != 1)
+      new_offset_a += i * a->strides[depth];
+
+    size_t new_offset_b = offset_b;
+    if (b->shape[depth] != 1)
+      new_offset_b += i * b->strides[depth];
+
+    size_t new_offset_c = offset_c + (i * c->strides[depth]);
+
+    _add(a, b, c, depth + 1, new_offset_a, new_offset_b, new_offset_c);
+  }
+}
+
 // TODO: implement an efficient broadcasting algorithm
 array_t element_wise_add(array_t *a, array_t *b) {
-  if (!_check_equal_shapes(a, b)) {
-    fprintf(stderr,
-            "ERROR: Currently cannot add arrays with different shapes. "
-            "a->ndim=%zu, "
-            "b->ndim=%zu\n",
-            a->ndim, b->ndim);
-    // exit(EXIT_FAILURE);
-  } else if (!_check_broadcastable_shapes(a, b)) {
-    fprintf(stderr,
-            "ERROR: Arrays are not broadcastable for addition. "
-            "Shapes do not match or cannot be broadcasted. "
-            "a->ndim=%zu, b->ndim=%zu\n",
-            a->ndim, b->ndim);
+  if (_check_equal_shapes(a, b)) {
+    int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+      data[i] = a->data[i] + b->data[i];
+    return _init_array_with_data(data, a->shape, a->ndim, true);
+
+  } else if (_check_broadcastable_shapes(a, b)) {
+
+    array_t *large = _get_larger_dims_array(a, b);
+    array_t *smol = _get_smaller_dims_array(a, b);
+
+    if (!_check_equal_ndims(a, b)) {
+      smol->ndim = large->ndim;
+      smol->shape = realloc(smol->shape, large->ndim);
+      memcpy(smol->shape, large->shape, large->ndim);
+    }
+
+    size_t *c_shape = malloc(sizeof(size_t) * large->ndim);
+    for (size_t i = 0; i < large->ndim; i++)
+      c_shape[i] = MAX(a->shape[i], b->shape[i]);
+
+    int *c_data = malloc(sizeof(int) * _numel(c_shape, large->ndim));
+
+    array_t c = _init_array_with_data(c_data, c_shape, large->ndim, true);
+    _add(a, b, &c, 0, 0, 0, 0);
+
+    // number of dimensions stay the same
+
+    fprintf(stderr, "NOT YET IMPLEMENTED");
+
+  } else {
+    fprintf(stderr, "ERROR: Arrays with shapes (...) and (...) cannot be "
+                    "broadcast together.\n");
     exit(EXIT_FAILURE);
-  }
-
-  // calculate the resultant broadcasted shape
-  size_t *new_shape = calloc(MAX(a->ndim, b->ndim), sizeof(size_t));
-  for (size_t i = 0; i < MAX(a->ndim, b->ndim); i++) {
-    if (i < MIN(a->ndim, b->ndim)) {
-      new_shape[i] = MAX(a->shape[i], b->shape[i]);
-    } else {
-      if (a->ndim > b->ndim) {
-        new_shape[i] = a->shape[i];
-      } else {
-        new_shape[i] = b->shape[i];
-      }
-    }
-  }
-
-  size_t *new_strides = calloc(MAX(a->ndim, b->ndim), sizeof(size_t));
-  for (size_t i = 0; i < MIN(a->ndim, b->ndim); i++) {
-    if (a->ndim > b->ndim) {
-      new_strides[i] = a->strides[i];
-    } else {
-      new_strides[i] = b->strides[i];
-    }
-  }
-  new_strides[0] = 0;
-
-  for (size_t i = 0; i < MAX(a->ndim, b->ndim); i++)
-    printf("%zu\n", new_shape[i]);
-
-  for (size_t i = 0; i < MAX(a->ndim, b->ndim); i++)
-    printf("%zu\n", new_strides[i]);
-
-  int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-  // BINARY_OP(a, b, data, +)
-  for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-    data[i] = a->data[i] + b->data[i * 0];
-  return _init_array_with_data_and_strides(data, new_shape, new_strides,
-                                           MAX(a->ndim, b->ndim), true);
+  };
 }
 
 array_t element_wise_sub(array_t *a, array_t *b) {

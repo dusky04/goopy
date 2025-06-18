@@ -37,6 +37,8 @@ array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value);
 array_t arange(int start, int stop, int step); // 1D function
 
 // Arithmetic Functions - rn same shape
+void _add(array_t *a, array_t *b, array_t *c, int depth, size_t offset_a,
+          size_t offset_b, size_t offset_c);
 array_t element_wise_add(array_t *a, array_t *b);
 array_t element_wise_sub(array_t *a, array_t *b);
 array_t element_wise_mul(array_t *a, array_t *b);
@@ -57,6 +59,7 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset);
 void _calc_array_strides(array_t *arr);
 size_t _numel(size_t *shape, size_t ndim);
 bool _check_equal_shapes(array_t *a, array_t *b);
+array_t *_get_smaller_dims_array(array_t *a, array_t *b);
 
 // Cleanup Functions
 void deinit_array(array_t *arr);
