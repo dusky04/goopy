@@ -204,6 +204,7 @@ static void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
   }
 }
 
+// TODO: research into if this could be made cache-friendlier
 array_t matmul(array_t *a, array_t *b) {
   // shape of cols of mat a should match shape of rows of mat b
   size_t m = a->shape[a->ndim - 2];
@@ -230,6 +231,47 @@ array_t matmul(array_t *a, array_t *b) {
   _matmul(a, b, &c, 0, 0, 0, 0);
   free(c_shape);
   return c;
+}
+
+// TODO: perhaps return a arrat view
+// or return a new array_t
+void reshape(array_t *arr, size_t *new_shape, size_t new_ndim) {
+  size_t new_num_elements = _numel(new_shape, new_ndim);
+  size_t old_num_elements = _numel(arr->shape, arr->ndim);
+  if (new_num_elements != old_num_elements) {
+    fprintf(stderr,
+            "ERROR: Cannot reshape array of size %zu into shape with %zu "
+            "elements.\n",
+            old_num_elements, new_num_elements);
+    exit(EXIT_FAILURE);
+  }
+
+  // TODO: add a check to only realloc with the ndims change
+  arr->ndim = new_ndim;
+  arr->shape = realloc(arr->shape, new_ndim * sizeof(size_t));
+  arr->strides = realloc(arr->strides, new_ndim * sizeof(size_t));
+  for (size_t i = 0; i < arr->ndim; i++)
+    arr->shape[i] = new_shape[i];
+  _calc_array_strides(arr);
+}
+
+// TODO: SHOULD return a array view
+// or return a new array_t
+void transpose(array_t *arr) {
+  // free(arr->shape);
+  size_t *old_shape = arr->shape;
+  arr->shape = malloc(sizeof(size_t) * arr->ndim);
+  for (size_t i = 0; i < arr->ndim; i++)
+    arr->shape[i] = old_shape[arr->ndim - i - 1];
+
+  size_t *old_strides = arr->strides;
+  arr->strides = malloc(sizeof(size_t) * arr->ndim);
+  for (size_t i = 0; i < arr->ndim; i++)
+    arr->strides[i] = old_strides[arr->ndim - i - 1];
+  // TODO: add a calculate backstrides function
+  // _calc_array_strides(arr);
+  free(old_shape);
+  free(old_strides);
 }
 
 // LOOK: issue of double free

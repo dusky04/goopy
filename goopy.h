@@ -44,6 +44,11 @@ array_t element_wise_div(array_t *a, array_t *b);
 
 array_t matmul(array_t *a, array_t *b);
 
+// Array Utility Functions
+void reshape(array_t *arr, size_t *new_shape, size_t new_ndim);
+void transpose(array_t *arr);
+void flatten(array_t *arr);
+
 // Formatting Functions
 void _print_array(array_t *arr, size_t cur_depth, size_t offset);
 #define PRINT_ARRAY(arr) _print_array(&arr, 0, 0);
