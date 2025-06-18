@@ -258,6 +258,7 @@ void reshape(array_t *arr, size_t *new_shape, size_t new_ndim) {
 
 // TODO: SHOULD return a array view
 // or return a new array_t
+// FIX: make it faster
 void transpose(array_t *arr) {
   // free(arr->shape);
   size_t *old_shape = arr->shape;
@@ -273,6 +274,16 @@ void transpose(array_t *arr) {
   // _calc_array_strides(arr);
   free(old_shape);
   free(old_strides);
+}
+
+// TODO: return an array view
+void flatten(array_t *arr) {
+  size_t num_elements = _numel(arr->shape, arr->ndim);
+  arr->ndim = 1;
+  arr->shape = realloc(arr->shape, sizeof(size_t));
+  arr->shape[0] = num_elements;
+  arr->strides = realloc(arr->strides, sizeof(size_t));
+  arr->strides[0] = 1;
 }
 
 // LOOK: issue of double free
