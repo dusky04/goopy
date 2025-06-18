@@ -36,6 +36,10 @@ array_t init_array_with_ones(size_t *shape, size_t ndim);
 array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value);
 array_t arange(int start, int stop, int step); // 1D function
 
+// Array View Funcions
+array_t _init_broadcast_view(array_t *a, size_t *target_shape,
+                             size_t target_ndim);
+
 // Arithmetic Functions - rn same shape
 void _add(array_t *a, array_t *b, array_t *c, int depth, size_t offset_a,
           size_t offset_b, size_t offset_c);
