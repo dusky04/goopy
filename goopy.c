@@ -7,42 +7,28 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int __add(int a, int b) { return a + b; }
-static int __sub(int a, int b) { return a - b; }
-static int __mul(int a, int b) { return a * b; }
-static int __div(int a, int b) { return a / b; }
+static inline int __add(int a, int b) { return a + b; }
+static inline int __sub(int a, int b) { return a - b; }
+static inline int __mul(int a, int b) { return a * b; }
+static inline int __div(int a, int b) { return a / b; }
 
 void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int depth,
                           size_t offset_a, size_t offset_b, size_t offset_c,
                           int (*op)(int, int)) {
   if (depth == (int)c->ndim - 1) {
     for (size_t i = 0; i < c->shape[depth]; i++) {
-      size_t base_a = offset_a;
-      if (a->shape[depth] != 1)
-        base_a += a->strides[depth] * i;
-
-      size_t base_b = offset_b;
-      if (b->shape[depth] != 1)
-        base_b += b->strides[depth] * i;
-
-      size_t base_c = offset_c + (c->strides[depth] * i);
+      size_t base_a = offset_a + i * a->strides[depth];
+      size_t base_b = offset_b + i * b->strides[depth];
+      size_t base_c = offset_c + i * c->strides[depth];
       c->data[base_c] = op(a->data[base_a], b->data[base_b]);
     }
     return;
   }
-
   // we are at the nth dimension iterate over all the elements
   for (size_t i = 0; i < c->shape[depth]; i++) {
-    size_t new_offset_a = offset_a;
-    if (a->shape[depth] != 1)
-      new_offset_a += i * a->strides[depth];
-
-    size_t new_offset_b = offset_b;
-    if (b->shape[depth] != 1)
-      new_offset_b += i * b->strides[depth];
-
+    size_t new_offset_a = offset_a + i * a->strides[depth];
+    size_t new_offset_b = offset_b + i * b->strides[depth];
     size_t new_offset_c = offset_c + (i * c->strides[depth]);
-
     _broadcast_binary_op(a, b, c, depth + 1, new_offset_a, new_offset_b,
                          new_offset_c, op);
   }
@@ -262,7 +248,7 @@ array_t element_wise_sub(array_t *a, array_t *b) {
   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true);
 
-  _broadcast_binary_op(a, b, &c, 0, 0, 0, 0, __sub);
+  _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __sub);
 
   free(view_a.shape);
   free(view_a.strides);
@@ -473,5 +459,3 @@ void deinit_array(array_t *arr) {
   free(arr->shape);
   free(arr->strides);
 }
-
-#undef BINARY_OP
