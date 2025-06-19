@@ -7,14 +7,78 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 static inline int __add(int a, int b) { return a + b; }
 static inline int __sub(int a, int b) { return a - b; }
 static inline int __mul(int a, int b) { return a * b; }
 static inline int __div(int a, int b) { return a / b; }
 
-void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int depth,
-                          size_t offset_a, size_t offset_b, size_t offset_c,
-                          int (*op)(int, int)) {
+// ----------------------------------------------------------------
+// Utility Functions
+size_t _numel(size_t *shape, size_t ndim) {
+  size_t num_elements = 1;
+  for (size_t i = 0; i < ndim; i++)
+    num_elements *= shape[i];
+  return num_elements;
+}
+
+void _calc_array_strides(array_t *arr) {
+  // stride is the number of bytes to skip over
+  // to get to the next element in that dimension
+  // for a one dimensional array, it is just the size of the element
+  arr->strides[arr->ndim - 1] = 1;
+  for (int i = arr->ndim - 2; i > -1; i--) {
+    arr->strides[i] = arr->strides[i + 1] * arr->shape[i + 1];
+  }
+}
+
+bool _check_equal_ndims(array_t *a, array_t *b) { return a->ndim == b->ndim; }
+
+bool _check_equal_shapes(array_t *a, array_t *b) {
+  return (a->ndim == b->ndim &&
+          memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) == 0);
+}
+
+bool _check_broadcastable_shapes(array_t *a, array_t *b) {
+  for (int i = MIN(a->ndim, b->ndim) - 1; i > -1; i--) {
+    if (!(a->shape[i] == b->shape[i] || a->shape[i] == 1 || b->shape[i] == 1))
+      return false;
+  }
+  return true;
+}
+
+// ----------------------------------------------------------------
+// Formatting Functions
+
+// FIX: Switch to a iterative algorithm
+// FIX: Update the array pointer rather than using [] syntax
+void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
+  if (cur_depth == arr->ndim - 1) {
+    // dimension small enough that we can print each element
+    printf("[");
+    for (size_t i = 0; i < arr->shape[cur_depth]; i++) {
+      // size_t cur_offset = i + (arr->strides[cur_depth] * offset);
+      size_t cur_offset = offset + (arr->strides[cur_depth] * i);
+      printf("%d ", arr->data[cur_offset]);
+    }
+    printf("]");
+    return;
+  }
+  // we are the nth dimension, iterate over all the elements in this
+  // dimension
+  printf("[");
+  for (size_t i = 0; i < arr->shape[cur_depth]; i++) {
+    size_t new_offset = offset + (i * arr->strides[cur_depth]);
+    _print_array(arr, cur_depth + 1, new_offset);
+  }
+  printf("]\n");
+}
+
+static void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int depth,
+                                 size_t offset_a, size_t offset_b,
+                                 size_t offset_c, int (*op)(int, int)) {
   if (depth == (int)c->ndim - 1) {
     for (size_t i = 0; i < c->shape[depth]; i++) {
       size_t base_a = offset_a + i * a->strides[depth];
@@ -34,40 +98,8 @@ void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int depth,
   }
 }
 
-size_t _numel(size_t *shape, size_t ndim) {
-  size_t num_elements = 1;
-  for (size_t i = 0; i < ndim; i++)
-    num_elements *= shape[i];
-  return num_elements;
-}
-
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-
-bool _check_equal_shapes(array_t *a, array_t *b) {
-  return (a->ndim == b->ndim &&
-          memcmp(a->shape, b->shape, a->ndim * sizeof(size_t)) == 0);
-}
-
-bool _check_equal_ndims(array_t *a, array_t *b) { return a->ndim == b->ndim; }
-
-bool _check_broadcastable_shapes(array_t *a, array_t *b) {
-  for (int i = MIN(a->ndim, b->ndim) - 1; i > -1; i--) {
-    if (!(a->shape[i] == b->shape[i] || a->shape[i] == 1 || b->shape[i] == 1))
-      return false;
-  }
-  return true;
-}
-
-void _calc_array_strides(array_t *arr) {
-  // stride is the number of bytes to skip over
-  // to get to the next element in that dimension
-  // for a one dimensional array, it is just the size of the element
-  arr->strides[arr->ndim - 1] = 1;
-  for (int i = arr->ndim - 2; i > -1; i--) {
-    arr->strides[i] = arr->strides[i + 1] * arr->shape[i + 1];
-  }
-}
+// ----------------------------------------------------------------
+// Array Initialisation Functions
 
 array_t _init_array_with_data(int *data, size_t *shape, size_t ndim,
                               bool owns) {
@@ -95,33 +127,8 @@ array_t _init_array_with_data_and_strides(int *data, size_t *shape,
   arr.shape = malloc(sizeof(size_t) * ndim);
   memcpy(arr.shape, shape, ndim * sizeof(size_t));
   arr.strides = malloc(sizeof(size_t) * ndim);
-  // _calc_array_strides(&arr);
   memcpy(arr.strides, strides, ndim * sizeof(size_t));
   return arr;
-}
-
-// FIX: Switch to a iterative algorithm
-// FIX: Update the array pointer rather than using [] syntax
-void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
-  if (cur_depth == arr->ndim - 1) {
-    // dimension small enough that we can print each element
-    printf("[");
-    for (size_t i = 0; i < arr->shape[cur_depth]; i++) {
-      // size_t cur_offset = i + (arr->strides[cur_depth] * offset);
-      size_t cur_offset = offset + (arr->strides[cur_depth] * i);
-      printf("%d ", arr->data[cur_offset]);
-    }
-    printf("]");
-    return;
-  }
-  // we are the nth dimension, iterate over all the elements in this
-  // dimension
-  printf("[");
-  for (size_t i = 0; i < arr->shape[cur_depth]; i++) {
-    size_t new_offset = offset + (i * arr->strides[cur_depth]);
-    _print_array(arr, cur_depth + 1, new_offset);
-  }
-  printf("]\n");
 }
 
 // LOOK: not a pretty function, see if something can be done
@@ -459,3 +466,6 @@ void deinit_array(array_t *arr) {
   free(arr->shape);
   free(arr->strides);
 }
+
+#undef MIN
+#undef MAX
