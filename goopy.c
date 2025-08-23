@@ -127,8 +127,8 @@ static void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int depth,
 // ----------------------------------------------------------------
 // Array Initialisation Functions
 
-array_t _init_array_with_data(int *data, size_t *shape, size_t ndim,
-                              bool owns) {
+array_t _init_array_with_data(void *data, size_t *shape, size_t ndim,
+                              array_type dtype, bool owns) {
   // TODO: Add a check for
   // number of elements in the data <= number of elements calculated
   // from shape
@@ -136,6 +136,7 @@ array_t _init_array_with_data(int *data, size_t *shape, size_t ndim,
   arr.data = data;
   arr.owns = owns;
   arr.ndim = ndim;
+  arr.dtype = dtype;
   arr.shape = malloc(sizeof(size_t) * ndim);
   memcpy(arr.shape, shape, ndim * sizeof(size_t));
   arr.strides = malloc(sizeof(size_t) * ndim);
@@ -164,7 +165,7 @@ array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value) {
   int *data = malloc(num_elements * sizeof(int));
   for (size_t i = 0; i < num_elements; i++)
     data[i] = value;
-  return _init_array_with_data(data, shape, ndim, true);
+  return _init_array_with_data(data, shape, ndim, true, GOOPY_INT32);
 }
 
 array_t init_array_with_zeros(size_t *shape, size_t ndim) {
@@ -175,7 +176,7 @@ array_t init_array_with_ones(size_t *shape, size_t ndim) {
   return init_array_with_scalar_value(shape, ndim, 1);
 }
 
-array_t arange(int start, int stop, int step) {
+array_t arange(int start, int stop, int step, array_type dtype) {
   if (stop < start) {
     fprintf(stderr,
             "ERROR: 'stop' value (%d) must be greater than or equal to "
@@ -185,11 +186,12 @@ array_t arange(int start, int stop, int step) {
   }
 
   int num_elements = (int)ceil((float)(stop - start) / (float)step);
-  int *data = malloc(num_elements * sizeof(int));
+  int *data = malloc(num_elements * get_size_dtype(dtype));
   for (int i = 0; i < num_elements; i++) {
     data[i] = start + (i * step);
   }
-  return _init_array_with_data(data, (size_t[]){num_elements}, 1, true);
+  return _init_array_with_data(data, (size_t[]){num_elements}, 1, true,
+                               GOOPY_INT32);
 }
 
 size_t *_calc_broadcast_shape(array_t *a, array_t *b, size_t c_ndim) {
@@ -208,8 +210,8 @@ size_t *_calc_broadcast_shape(array_t *a, array_t *b, size_t c_ndim) {
 
 array_t _init_broadcast_view(array_t *a, size_t *target_shape,
                              size_t target_ndim) {
-  array_t view =
-      _init_array_with_data(a->data, target_shape, target_ndim, false);
+  array_t view = _init_array_with_data(a->data, target_shape, target_ndim,
+                                       false, GOOPY_INT32);
 
   for (int i = target_ndim - 1; i >= 0; i--) {
     int idx = (int)a->ndim - (target_ndim - i);
@@ -226,11 +228,12 @@ array_t _init_broadcast_view(array_t *a, size_t *target_shape,
 
 // TODO: implement an efficient broadcasting algorithm
 array_t element_wise_add(array_t *a, array_t *b) {
+  // TODO: Add a check for data types
   if (_check_equal_shapes(a, b)) {
     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
       data[i] = a->data[i] + b->data[i];
-    return _init_array_with_data(data, a->shape, a->ndim, true);
+    return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
   }
 
   if (!_check_broadcastable_shapes(a, b)) {
@@ -246,7 +249,7 @@ array_t element_wise_add(array_t *a, array_t *b) {
   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
 
   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true);
+  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true, GOOPY_INT32);
 
   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __add);
 
@@ -263,7 +266,7 @@ array_t element_wise_sub(array_t *a, array_t *b) {
     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
       data[i] = a->data[i] - b->data[i];
-    return _init_array_with_data(data, a->shape, a->ndim, true);
+    return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
   }
 
   if (!_check_broadcastable_shapes(a, b)) {
@@ -279,7 +282,7 @@ array_t element_wise_sub(array_t *a, array_t *b) {
   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
 
   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true);
+  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true, GOOPY_INT32);
 
   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __sub);
 
@@ -296,7 +299,7 @@ array_t element_wise_mul(array_t *a, array_t *b) {
     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
       data[i] = a->data[i] * b->data[i];
-    return _init_array_with_data(data, a->shape, a->ndim, true);
+    return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
   }
 
   if (!_check_broadcastable_shapes(a, b)) {
@@ -312,7 +315,7 @@ array_t element_wise_mul(array_t *a, array_t *b) {
   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
 
   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true);
+  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true, GOOPY_INT32);
 
   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __mul);
 
@@ -329,7 +332,7 @@ array_t element_wise_div(array_t *a, array_t *b) {
     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
       data[i] = a->data[i] / b->data[i];
-    return _init_array_with_data(data, a->shape, a->ndim, true);
+    return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
   }
 
   if (!_check_broadcastable_shapes(a, b)) {
@@ -345,7 +348,7 @@ array_t element_wise_div(array_t *a, array_t *b) {
   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
 
   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true);
+  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true, GOOPY_INT32);
 
   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __div);
 

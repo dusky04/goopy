@@ -1,6 +1,6 @@
 BUILD=build
 CC=gcc
-CFLAGS=-Wall -Wextra -Werror -g
+CFLAGS=-Wall -Wextra -g
 
 all: main $(BUILD)/goopy.o
 

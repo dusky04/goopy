@@ -36,16 +36,18 @@ typedef struct {
 // all the memory passed into a view will have to be externally managed
 
 // Array Initialisation Functions
-array_t _init_array_with_data(int *data, size_t *shape, size_t ndim, bool owns);
+array_t _init_array_with_data(void *data, size_t *shape, size_t ndim,
+                              array_type dtype, bool owns);
 array_t _init_array_with_data_and_strides(int *data, size_t *shape,
                                           size_t *strides, size_t ndim,
                                           bool owns);
 array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value);
 array_t init_array_with_zeros(size_t *shape, size_t ndim);
 array_t init_array_with_ones(size_t *shape, size_t ndim);
+
 // TODO: maybe implement init_array_with_value({2, 2}, {1, 2})
 // -> [[1, 2], [1, 2]] can pass in non-scalar values
-array_t arange(int start, int stop, int step); // 1D function
+array_t arange(int start, int stop, int step, array_type dtype); // 1D function
 
 // Array View Funcions
 // array_t init_array_view(int*data, size)
