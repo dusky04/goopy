@@ -1,3 +1,7 @@
 # Executables
 *.out
 main
+
+examples
+lib/
+build/

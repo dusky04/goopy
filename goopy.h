@@ -6,6 +6,13 @@
 
 // TODO: implement arena allocation for better ux
 
+typedef enum {
+  GOOPY_INT32,
+  GOOPY_INT64,
+  GOOPY_FLOAT32,
+  GOOPY_FLOAT64
+} array_type;
+
 // TODO: add dtype
 // All the members need to be explicitly own
 typedef struct {
@@ -17,7 +24,11 @@ typedef struct {
   size_t *strides;
   // number of dimensions of the data
   size_t ndim;
-  // TODO: remove this workaround
+  // data type
+  array_type dtype;
+  // size of each element in the data buffer
+  size_t itemsize;
+  // determine if this it a view
   bool owns;
 } array_t;
 
@@ -37,6 +48,7 @@ array_t init_array_with_ones(size_t *shape, size_t ndim);
 array_t arange(int start, int stop, int step); // 1D function
 
 // Array View Funcions
+// array_t init_array_view(int*data, size)
 array_t _init_broadcast_view(array_t *a, size_t *target_shape,
                              size_t target_ndim);
 

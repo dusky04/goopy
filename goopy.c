@@ -3,17 +3,27 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/cdefs.h>
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-static inline int __add(int a, int b) { return a + b; }
-static inline int __sub(int a, int b) { return a - b; }
-static inline int __mul(int a, int b) { return a * b; }
-static inline int __div(int a, int b) { return a / b; }
+__attribute__((always_inline)) static inline int __add(int a, int b) {
+  return a + b;
+}
+__attribute__((always_inline)) static inline int __sub(int a, int b) {
+  return a - b;
+}
+__attribute__((always_inline)) static inline int __mul(int a, int b) {
+  return a * b;
+}
+__attribute__((always_inline)) static inline int __div(int a, int b) {
+  return a / b;
+}
 
 // ----------------------------------------------------------------
 // Utility Functions
@@ -47,6 +57,22 @@ bool _check_broadcastable_shapes(array_t *a, array_t *b) {
       return false;
   }
   return true;
+}
+
+size_t get_size_dtype(array_type dtype) {
+  switch (dtype) {
+  case GOOPY_INT32:
+    return sizeof(int32_t);
+  case GOOPY_INT64:
+    return sizeof(int64_t);
+  case GOOPY_FLOAT32:
+    return sizeof(float);
+  case GOOPY_FLOAT64:
+    return sizeof(double);
+  default:
+    fprintf(stderr, "ERROR: Unknown data type");
+    return 0;
+  }
 }
 
 // ----------------------------------------------------------------

@@ -1,21 +1,21 @@
-cc = gcc
-CFLAGS = -Wall -Wextra -Werror -g
+BUILD=build
+CC=gcc
+CFLAGS=-Wall -Wextra -Werror -g
 
-all: main
+all: main $(BUILD)/goopy.o
+
+main: main.c $(BUILD)/goopy.o
+	$(CC) $(CFLAGS) main.c $(BUILD)/goopy.o -lm -o $@
+
+$(BUILD)/goopy.o: goopy.c | $(BUILD)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD):
+	mkdir -pv $(BUILD)
 
 leak: main
 	valgrind --leak-check=full -s ./main
 
-main: main.c libgoopy.a
-	$(cc) $(CFLAGS) main.c -Llib/ -lgoopy -lm -o $@
-
-libgoopy.a: goopy.o
-	mkdir -p lib
-	ar rcs lib/libgoopy.a build/$^
-
-goopy.o: goopy/goopy.c
-	$(cc) -c $^ -o build/$@
-
 clean:
-	rm -rf lib/* build/*
+	rm -rf build/*
 	rm -f  main
