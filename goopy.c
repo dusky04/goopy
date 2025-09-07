@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,15 +12,10 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-typedef int32_t i32;
-typedef int64_t i64;
-typedef float f32;
-typedef double f64;
-
 // ----------------------------------------------------------------
 // Binary Operand Kernels
 
-typedef void (*binary_op_kernel)(void *, void *, void *);
+typedef void (*BinaryOpKernel)(void *, void *, void *);
 
 typedef enum {
   GOOPY_OP_ADD,
@@ -29,11 +24,6 @@ typedef enum {
   GOOPY_OP_DIV,
   NUM_BINARY_OPS
 } BinaryOps;
-
-#define AS_I32(a) *(i32 *)a
-#define AS_I64(a) *(i64 *)a
-#define AS_F32(a) *(f32 *)a
-#define AS_F64(a) *(f64 *)a
 
 #define BINARY_OP(a, b, c, op) (c = a op b)
 
@@ -89,7 +79,7 @@ static inline void _op_div_f64(void *a, void *b, void *c) {
   BINARY_OP(AS_F64(a), AS_F64(b), AS_F64(c), /);
 }
 
-binary_op_kernel KERNELS[NUM_BINARY_OPS][GOOPY_NUM_TYPES] = {
+BinaryOpKernel KERNELS[NUM_BINARY_OPS][GOOPY_NUM_TYPES] = {
     [GOOPY_OP_ADD] = {[GOOPY_INT32] = _op_add_i32,
                       [GOOPY_INT64] = _op_add_i64,
                       [GOOPY_FLOAT32] = _op_add_f32,
@@ -106,6 +96,8 @@ binary_op_kernel KERNELS[NUM_BINARY_OPS][GOOPY_NUM_TYPES] = {
                       [GOOPY_INT64] = _op_div_i64,
                       [GOOPY_FLOAT32] = _op_div_f32,
                       [GOOPY_FLOAT64] = _op_div_f64}};
+
+#undef BINARY_OP
 
 // ----------------------------------------------------------------
 // Utility Functions
@@ -389,17 +381,22 @@ array_t _init_broadcast_view(array_t *a, size_t *target_shape,
 }
 
 // TODO: implement an efficient broadcasting algorithm
-array_t element_wise_add(array_t *a, array_t *b) {
+static array_t element_wise_op(array_t *a, array_t *b, BinaryOps op) {
   // TODO: Add a check for data types
   if (_check_equal_shapes(a, b)) {
-    void *data = malloc(sizeof(a->dtype) * _numel(a->shape, a->ndim));
+    void *data = malloc(sizeof(a->itemsize) * _numel(a->shape, a->ndim));
 
     size_t itemsize = a->itemsize;
     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++) {
       void *a_idx = a->data + (itemsize * i);
       void *b_idx = b->data + (itemsize * i);
       void *c_idx = data + (itemsize * i);
-      KERNELS[GOOPY_OP_ADD][a->dtype](a_idx, b_idx, c_idx);
+
+      // printf("A: %ld, ", AS_I64(a_idx));
+      // printf("B: %ld\n", AS_I64(b_idx));
+
+      KERNELS[op][a->dtype](a_idx, b_idx, c_idx);
+      // printf("C: %ld\n", AS_I64(c_idx));
     }
     return _init_array_with_data(data, a->shape, a->ndim, a->dtype, true);
   }
@@ -419,7 +416,7 @@ array_t element_wise_add(array_t *a, array_t *b) {
   void *c_data = malloc(sizeof(a->itemsize) * _numel(c_shape, c_ndim));
   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, a->dtype, true);
 
-  _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, GOOPY_OP_ADD);
+  _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, op);
 
   free(view_a.shape);
   free(view_a.strides);
@@ -429,107 +426,21 @@ array_t element_wise_add(array_t *a, array_t *b) {
   return c;
 }
 
-// array_t element_wise_sub(array_t *a, array_t *b) {
-//   if (_check_equal_shapes(a, b)) {
-//     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-//     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-//       data[i] = a->data[i] - b->data[i];
-//     return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
-//   }
+array_t element_wise_add(array_t *a, array_t *b) {
+  return element_wise_op(a, b, GOOPY_OP_ADD);
+}
 
-//   if (!_check_broadcastable_shapes(a, b)) {
-//     fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
-//                     "broadcast together.\n");
-//     exit(EXIT_FAILURE);
-//   }
+array_t element_wise_sub(array_t *a, array_t *b) {
+  return element_wise_op(a, b, GOOPY_OP_SUB);
+}
 
-//   size_t c_ndim = MAX(a->ndim, b->ndim);
-//   size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
+array_t element_wise_mul(array_t *a, array_t *b) {
+  return element_wise_op(a, b, GOOPY_OP_MUL);
+}
 
-//   array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
-//   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
-
-//   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-//   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true,
-//   GOOPY_INT32);
-
-//   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __sub);
-
-//   free(view_a.shape);
-//   free(view_a.strides);
-//   free(view_b.shape);
-//   free(view_b.strides);
-//   free(c_shape);
-//   return c;
-// }
-
-// array_t element_wise_mul(array_t *a, array_t *b) {
-//   if (_check_equal_shapes(a, b)) {
-//     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-//     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-//       data[i] = a->data[i] * b->data[i];
-//     return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
-//   }
-
-//   if (!_check_broadcastable_shapes(a, b)) {
-//     fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
-//                     "broadcast together.\n");
-//     exit(EXIT_FAILURE);
-//   }
-
-//   size_t c_ndim = MAX(a->ndim, b->ndim);
-//   size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
-
-//   array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
-//   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
-
-//   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-//   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true,
-//   GOOPY_INT32);
-
-//   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __mul);
-
-//   free(view_a.shape);
-//   free(view_a.strides);
-//   free(view_b.shape);
-//   free(view_b.strides);
-//   free(c_shape);
-//   return c;
-// }
-
-// array_t element_wise_div(array_t *a, array_t *b) {
-//   if (_check_equal_shapes(a, b)) {
-//     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-//     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-//       data[i] = a->data[i] / b->data[i];
-//     return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
-//   }
-
-//   if (!_check_broadcastable_shapes(a, b)) {
-//     fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
-//                     "broadcast together.\n");
-//     exit(EXIT_FAILURE);
-//   }
-
-//   size_t c_ndim = MAX(a->ndim, b->ndim);
-//   size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
-
-//   array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
-//   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
-
-//   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-//   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true,
-//   GOOPY_INT32);
-
-//   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __div);
-
-//   free(view_a.shape);
-//   free(view_a.strides);
-//   free(view_b.shape);
-//   free(view_b.strides);
-//   free(c_shape);
-//   return c;
-// }
+array_t element_wise_div(array_t *a, array_t *b) {
+  return element_wise_op(a, b, GOOPY_OP_DIV);
+}
 
 // // TODO: implement getting single element from a array to clean up this
 // // code but VERY MUCH LATER DOWN the LINE
