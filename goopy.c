@@ -365,7 +365,7 @@ size_t *_calc_broadcast_shape(array_t *a, array_t *b, size_t c_ndim) {
 array_t _init_broadcast_view(array_t *a, size_t *target_shape,
                              size_t target_ndim) {
   array_t view = _init_array_with_data(a->data, target_shape, target_ndim,
-                                       false, a->dtype);
+                                       a->dtype, false);
 
   for (int i = target_ndim - 1; i >= 0; i--) {
     int idx = (int)a->ndim - (target_ndim - i);

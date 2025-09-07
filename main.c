@@ -12,17 +12,17 @@ int main() {
 
   printf("-----------------------------------------------------------------\n");
   printf("B ARRAY\n");
-  // i64 data2[] = {1, 2, 3, 4};
-  f32 data2[] = {1, 2, 3, 4, 5, 6, 7, 8};
-  array_t b = _init_array_with_data(data2, (size_t[]){2, 2, 2}, 3,
-                                    GOOPY_FLOAT32, false);
+  // i64 data2[] = {1, 2, 3, 4, 5, 6, 7, 8};
+  f32 data2[] = {1, 2, 3, 4};
+  array_t b =
+      _init_array_with_data(data2, (size_t[]){2, 2}, 2, GOOPY_FLOAT32, false);
   PRINT_ARRAY(b);
   printf(
       "\n-----------------------------------------------------------------\n");
 
   printf("C ARRAY\n");
 
-  array_t c = element_wise_mul(&a, &b);
+  array_t c = element_wise_div(&a, &b);
   PRINT_ARRAY(c);
 }
 
