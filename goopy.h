@@ -10,10 +10,9 @@ typedef enum {
   GOOPY_INT32,
   GOOPY_INT64,
   GOOPY_FLOAT32,
-  GOOPY_FLOAT64
+  GOOPY_FLOAT64,
+  GOOPY_NUM_TYPES
 } array_type;
-
-#define GOOPY_TYPES_COUNT 4
 
 // TODO: add dtype
 // All the members need to be explicitly own

@@ -12,18 +12,100 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-__attribute__((always_inline)) static inline int __add(int a, int b) {
-  return a + b;
+typedef int32_t i32;
+typedef int64_t i64;
+typedef float f32;
+typedef double f64;
+
+// ----------------------------------------------------------------
+// Binary Operand Kernels
+
+typedef void (*binary_op_kernel)(void *, void *, void *);
+
+typedef enum {
+  GOOPY_OP_ADD,
+  GOOPY_OP_SUB,
+  GOOPY_OP_MUL,
+  GOOPY_OP_DIV,
+  NUM_BINARY_OPS
+} BinaryOps;
+
+#define AS_I32(a) *(i32 *)a
+#define AS_I64(a) *(i64 *)a
+#define AS_F32(a) *(f32 *)a
+#define AS_F64(a) *(f64 *)a
+
+#define BINARY_OP(a, b, c, op) (c = a op b)
+
+static inline void _op_add_i32(void *a, void *b, void *c) {
+  BINARY_OP(AS_I32(a), AS_I32(b), AS_I32(c), +);
 }
-__attribute__((always_inline)) static inline int __sub(int a, int b) {
-  return a - b;
+static inline void _op_add_i64(void *a, void *b, void *c) {
+  BINARY_OP(AS_I64(a), AS_I64(b), AS_I64(c), +);
 }
-__attribute__((always_inline)) static inline int __mul(int a, int b) {
-  return a * b;
+static inline void _op_add_f32(void *a, void *b, void *c) {
+  BINARY_OP(AS_F32(a), AS_F32(b), AS_F32(c), +);
 }
-__attribute__((always_inline)) static inline int __div(int a, int b) {
-  return a / b;
+static inline void _op_add_f64(void *a, void *b, void *c) {
+  BINARY_OP(AS_F64(a), AS_F64(b), AS_F64(c), +);
 }
+
+static inline void _op_sub_i32(void *a, void *b, void *c) {
+  BINARY_OP(AS_I32(a), AS_I32(b), AS_I32(c), -);
+}
+static inline void _op_sub_i64(void *a, void *b, void *c) {
+  BINARY_OP(AS_I64(a), AS_I64(b), AS_I64(c), -);
+}
+static inline void _op_sub_f32(void *a, void *b, void *c) {
+  BINARY_OP(AS_F32(a), AS_F32(b), AS_F32(c), -);
+}
+static inline void _op_sub_f64(void *a, void *b, void *c) {
+  BINARY_OP(AS_F64(a), AS_F64(b), AS_F64(c), -);
+}
+
+static inline void _op_mul_i32(void *a, void *b, void *c) {
+  BINARY_OP(AS_I32(a), AS_I32(b), AS_I32(c), *);
+}
+static inline void _op_mul_i64(void *a, void *b, void *c) {
+  BINARY_OP(AS_I64(a), AS_I64(b), AS_I64(c), *);
+}
+static inline void _op_mul_f32(void *a, void *b, void *c) {
+  BINARY_OP(AS_F32(a), AS_F32(b), AS_F32(c), *);
+}
+static inline void _op_mul_f64(void *a, void *b, void *c) {
+  BINARY_OP(AS_F64(a), AS_F64(b), AS_F64(c), *);
+}
+
+static inline void _op_div_i32(void *a, void *b, void *c) {
+  BINARY_OP(AS_I32(a), AS_I32(b), AS_I32(c), /);
+}
+static inline void _op_div_i64(void *a, void *b, void *c) {
+  BINARY_OP(AS_I64(a), AS_I64(b), AS_I64(c), /);
+}
+static inline void _op_div_f32(void *a, void *b, void *c) {
+  BINARY_OP(AS_F32(a), AS_F32(b), AS_F32(c), /);
+}
+static inline void _op_div_f64(void *a, void *b, void *c) {
+  BINARY_OP(AS_F64(a), AS_F64(b), AS_F64(c), /);
+}
+
+binary_op_kernel KERNELS[NUM_BINARY_OPS][GOOPY_NUM_TYPES] = {
+    [GOOPY_OP_ADD] = {[GOOPY_INT32] = _op_add_i32,
+                      [GOOPY_INT64] = _op_add_i64,
+                      [GOOPY_FLOAT32] = _op_add_f32,
+                      [GOOPY_FLOAT64] = _op_add_f64},
+    [GOOPY_OP_SUB] = {[GOOPY_INT32] = _op_sub_i32,
+                      [GOOPY_INT64] = _op_sub_i64,
+                      [GOOPY_FLOAT32] = _op_sub_f32,
+                      [GOOPY_FLOAT64] = _op_sub_f64},
+    [GOOPY_OP_MUL] = {[GOOPY_INT32] = _op_mul_i32,
+                      [GOOPY_INT64] = _op_mul_i64,
+                      [GOOPY_FLOAT32] = _op_mul_f32,
+                      [GOOPY_FLOAT64] = _op_mul_f64},
+    [GOOPY_OP_DIV] = {[GOOPY_INT32] = _op_div_i32,
+                      [GOOPY_INT64] = _op_div_i64,
+                      [GOOPY_FLOAT32] = _op_div_f32,
+                      [GOOPY_FLOAT64] = _op_div_f64}};
 
 // ----------------------------------------------------------------
 // Utility Functions
@@ -62,13 +144,13 @@ bool _check_broadcastable_shapes(array_t *a, array_t *b) {
 size_t get_size_dtype(array_type dtype) {
   switch (dtype) {
   case GOOPY_INT32:
-    return sizeof(int32_t);
+    return sizeof(i32);
   case GOOPY_INT64:
-    return sizeof(int64_t);
+    return sizeof(i64);
   case GOOPY_FLOAT32:
-    return sizeof(float);
+    return sizeof(f32);
   case GOOPY_FLOAT64:
-    return sizeof(double);
+    return sizeof(f64);
   default:
     fprintf(stderr, "ERROR: Unknown data type");
     return 0;
@@ -95,7 +177,7 @@ static inline void _print_f64(void *data, size_t offset) {
   printf("%.4g ", ((double *)data)[offset]);
 }
 
-static PrinterFn _printers[GOOPY_TYPES_COUNT] = {
+static PrinterFn _printers[GOOPY_NUM_TYPES] = {
     [GOOPY_INT32] = _print_i32,
     [GOOPY_INT64] = _print_i64,
     [GOOPY_FLOAT32] = _print_f32,
@@ -127,28 +209,30 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
 
 // ----------------------------------------------------------------
 
-// static void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int
-// depth,
-//                                  size_t offset_a, size_t offset_b,
-//                                  size_t offset_c, int (*op)(int, int)) {
-//   if (depth == (int)c->ndim - 1) {
-//     for (size_t i = 0; i < c->shape[depth]; i++) {
-//       size_t base_a = offset_a + i * a->strides[depth];
-//       size_t base_b = offset_b + i * b->strides[depth];
-//       size_t base_c = offset_c + i * c->strides[depth];
-//       c->data[base_c] = op(a->data[base_a], b->data[base_b]);
-//     }
-//     return;
-//   }
-//   // we are at the nth dimension iterate over all the elements
-//   for (size_t i = 0; i < c->shape[depth]; i++) {
-//     size_t new_offset_a = offset_a + i * a->strides[depth];
-//     size_t new_offset_b = offset_b + i * b->strides[depth];
-//     size_t new_offset_c = offset_c + (i * c->strides[depth]);
-//     _broadcast_binary_op(a, b, c, depth + 1, new_offset_a, new_offset_b,
-//                          new_offset_c, op);
-//   }
-// }
+static void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int depth,
+                                 size_t offset_a, size_t offset_b,
+                                 size_t offset_c, BinaryOps op) {
+  if (depth == (int)c->ndim - 1) {
+    for (size_t i = 0; i < c->shape[depth]; i++) {
+      void *base_a = a->data + a->itemsize * (offset_a + i * a->strides[depth]);
+      void *base_b = b->data + b->itemsize * (offset_b + i * b->strides[depth]);
+      void *base_c = c->data + c->itemsize * (offset_c + i * c->strides[depth]);
+
+      // c->data[base_c] = op(a->data[base_a], b->data[base_b]);
+      KERNELS[op][a->dtype](base_a, base_b, base_c);
+    }
+
+    return;
+  }
+  // we are at the nth dimension iterate over all the elements
+  for (size_t i = 0; i < c->shape[depth]; i++) {
+    size_t new_offset_a = offset_a + i * a->strides[depth];
+    size_t new_offset_b = offset_b + i * b->strides[depth];
+    size_t new_offset_c = offset_c + (i * c->strides[depth]);
+    _broadcast_binary_op(a, b, c, depth + 1, new_offset_a, new_offset_b,
+                         new_offset_c, op);
+  }
+}
 
 // ----------------------------------------------------------------
 // Array Initialisation Functions
@@ -163,6 +247,7 @@ array_t _init_array_with_data(void *data, size_t *shape, size_t ndim,
   arr.owns = owns;
   arr.ndim = ndim;
   arr.dtype = dtype;
+  arr.itemsize = get_size_dtype(dtype);
   arr.shape = malloc(sizeof(size_t) * ndim);
   memcpy(arr.shape, shape, ndim * sizeof(size_t));
   arr.strides = malloc(sizeof(size_t) * ndim);
@@ -177,6 +262,7 @@ array_t _init_array_with_data_and_strides(int *data, size_t *shape,
   arr.data = data;
   arr.owns = owns;
   arr.ndim = ndim;
+  // arr.itemsize = get_size_dtype(array_type dtype)
   arr.shape = malloc(sizeof(size_t) * ndim);
   memcpy(arr.shape, shape, ndim * sizeof(size_t));
   arr.strides = malloc(sizeof(size_t) * ndim);
@@ -234,59 +320,64 @@ size_t *_calc_broadcast_shape(array_t *a, array_t *b, size_t c_ndim) {
   return result_shape;
 }
 
-// array_t _init_broadcast_view(array_t *a, size_t *target_shape,
-//                              size_t target_ndim) {
-//   array_t view = _init_array_with_data(a->data, target_shape, target_ndim,
-//                                        false, GOOPY_INT32);
+array_t _init_broadcast_view(array_t *a, size_t *target_shape,
+                             size_t target_ndim) {
+  array_t view = _init_array_with_data(a->data, target_shape, target_ndim,
+                                       false, a->dtype);
 
-//   for (int i = target_ndim - 1; i >= 0; i--) {
-//     int idx = (int)a->ndim - (target_ndim - i);
-//     if (idx >= 0) {
-//       view.shape[i] = a->shape[idx];
-//       view.strides[i] = (a->shape[idx] == 1) ? 0 : a->strides[idx];
-//     } else {
-//       view.shape[i] = target_shape[i];
-//       view.strides[i] = 0;
-//     }
-//   }
-//   return view;
-// }
+  for (int i = target_ndim - 1; i >= 0; i--) {
+    int idx = (int)a->ndim - (target_ndim - i);
+    if (idx >= 0) {
+      view.shape[i] = a->shape[idx];
+      view.strides[i] = (a->shape[idx] == 1) ? 0 : a->strides[idx];
+    } else {
+      view.shape[i] = target_shape[i];
+      view.strides[i] = 0;
+    }
+  }
+  return view;
+}
 
-// // TODO: implement an efficient broadcasting algorithm
-// array_t element_wise_add(array_t *a, array_t *b) {
-//   // TODO: Add a check for data types
-//   if (_check_equal_shapes(a, b)) {
-//     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-//     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-//       data[i] = a->data[i] + b->data[i];
-//     return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
-//   }
+// TODO: implement an efficient broadcasting algorithm
+array_t element_wise_add(array_t *a, array_t *b) {
+  // TODO: Add a check for data types
+  if (_check_equal_shapes(a, b)) {
+    void *data = malloc(sizeof(a->dtype) * _numel(a->shape, a->ndim));
 
-//   if (!_check_broadcastable_shapes(a, b)) {
-//     fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
-//                     "broadcast together.\n");
-//     exit(EXIT_FAILURE);
-//   }
+    size_t itemsize = a->itemsize;
+    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++) {
+      void *a_idx = a->data + (itemsize * i);
+      void *b_idx = b->data + (itemsize * i);
+      void *c_idx = data + (itemsize * i);
+      KERNELS[GOOPY_OP_ADD][a->dtype](a_idx, b_idx, c_idx);
+    }
+    return _init_array_with_data(data, a->shape, a->ndim, a->dtype, true);
+  }
 
-//   size_t c_ndim = MAX(a->ndim, b->ndim);
-//   size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
+  if (!_check_broadcastable_shapes(a, b)) {
+    fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
+                    "broadcast together.\n");
+    exit(EXIT_FAILURE);
+  }
 
-//   array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
-//   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
+  size_t c_ndim = MAX(a->ndim, b->ndim);
+  size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
 
-//   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-//   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true,
-//   GOOPY_INT32);
+  array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
+  array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
 
-//   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __add);
+  void *c_data = malloc(sizeof(a->itemsize) * _numel(c_shape, c_ndim));
+  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, a->dtype, true);
 
-//   free(view_a.shape);
-//   free(view_a.strides);
-//   free(view_b.shape);
-//   free(view_b.strides);
-//   free(c_shape);
-//   return c;
-// }
+  _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, GOOPY_OP_ADD);
+
+  free(view_a.shape);
+  free(view_a.strides);
+  free(view_b.shape);
+  free(view_b.strides);
+  free(c_shape);
+  return c;
+}
 
 // array_t element_wise_sub(array_t *a, array_t *b) {
 //   if (_check_equal_shapes(a, b)) {

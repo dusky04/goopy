@@ -6,9 +6,23 @@
 
 int main() {
   size_t shape[] = {2, 2, 2};
-  int64_t data[] = {1, 2, 3, 4, 5, 6, 7, 8};
-  array_t a = _init_array_with_data(data, shape, 3, GOOPY_INT64, false);
+  int32_t data[] = {1, 2, 3, 4, 5, 6, 7, 8};
+  array_t a = _init_array_with_data(data, shape, 3, GOOPY_INT32, false);
   PRINT_ARRAY(a);
+
+  printf("-----------------------------------------------------------------\n");
+  printf("B ARRAY\n");
+  int32_t data2[] = {1, 2, 3, 4};
+  array_t b =
+      _init_array_with_data(data2, (size_t[]){2, 2}, 2, GOOPY_INT32, false);
+  PRINT_ARRAY(b);
+  printf(
+      "\n-----------------------------------------------------------------\n");
+
+  printf("C ARRAY\n");
+
+  array_t c = element_wise_add(&a, &b);
+  PRINT_ARRAY(c);
 }
 
 // int main() {
