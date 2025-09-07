@@ -49,8 +49,10 @@ typedef struct {
 // all the memory passed into a view will have to be externally managed
 
 // Array Initialisation Functions
-array_t _init_array_with_data(void *data, size_t *shape, size_t ndim,
-                              array_type dtype, bool owns);
+array_t init_i32_array(void *data, size_t *shape, size_t ndim, bool owns);
+array_t init_i64_array(void *data, size_t *shape, size_t ndim, bool owns);
+array_t init_f32_array(void *data, size_t *shape, size_t ndim, bool owns);
+array_t init_f64_array(void *data, size_t *shape, size_t ndim, bool owns);
 array_t _init_array_with_data_and_strides(int *data, size_t *shape,
                                           size_t *strides, size_t ndim,
                                           bool owns);

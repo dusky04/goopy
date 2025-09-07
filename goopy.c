@@ -229,8 +229,8 @@ static void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int depth,
 // ----------------------------------------------------------------
 // Array Initialisation Functions
 
-array_t _init_array_with_data(void *data, size_t *shape, size_t ndim,
-                              array_type dtype, bool owns) {
+static array_t _init_array_with_data(void *data, size_t *shape, size_t ndim,
+                                     array_type dtype, bool owns) {
   // TODO: Add a check for
   // number of elements in the data <= number of elements calculated
   // from shape
@@ -245,6 +245,22 @@ array_t _init_array_with_data(void *data, size_t *shape, size_t ndim,
   arr.strides = malloc(sizeof(size_t) * ndim);
   _calc_array_strides(&arr);
   return arr;
+}
+
+array_t init_i32_array(void *data, size_t *shape, size_t ndim, bool owns) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_INT32, owns);
+}
+
+array_t init_i64_array(void *data, size_t *shape, size_t ndim, bool owns) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_INT64, owns);
+}
+
+array_t init_f32_array(void *data, size_t *shape, size_t ndim, bool owns) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_FLOAT32, owns);
+}
+
+array_t init_f64_array(void *data, size_t *shape, size_t ndim, bool owns) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_FLOAT64, owns);
 }
 
 array_t _init_array_with_data_and_strides(int *data, size_t *shape,
