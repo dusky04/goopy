@@ -20,6 +20,12 @@ typedef enum {
   GOOPY_NUM_TYPES
 } array_type;
 
+// Helpers for easy type casting
+#define AS_I32(a) *(i32 *)a
+#define AS_I64(a) *(i64 *)a
+#define AS_F32(a) *(f32 *)a
+#define AS_F64(a) *(f64 *)a
+
 // TODO: add dtype
 // All the members need to be explicitly own
 typedef struct {
@@ -61,12 +67,6 @@ array_t arange(int start, int stop, int step, array_type dtype);
 // array_t init_array_view(int*data, size)
 array_t _init_broadcast_view(array_t *a, size_t *target_shape,
                              size_t target_ndim);
-
-// Helpers for easy type casting
-#define AS_I32(a) *(i32 *)a
-#define AS_I64(a) *(i64 *)a
-#define AS_F32(a) *(f32 *)a
-#define AS_F64(a) *(f64 *)a
 
 // Arithmetic Functions - supports broadcasting
 array_t element_wise_add(array_t *a, array_t *b);

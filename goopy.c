@@ -391,12 +391,7 @@ static array_t element_wise_op(array_t *a, array_t *b, BinaryOps op) {
       void *a_idx = a->data + (itemsize * i);
       void *b_idx = b->data + (itemsize * i);
       void *c_idx = data + (itemsize * i);
-
-      // printf("A: %ld, ", AS_I64(a_idx));
-      // printf("B: %ld\n", AS_I64(b_idx));
-
       KERNELS[op][a->dtype](a_idx, b_idx, c_idx);
-      // printf("C: %ld\n", AS_I64(c_idx));
     }
     return _init_array_with_data(data, a->shape, a->ndim, a->dtype, true);
   }
