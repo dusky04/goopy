@@ -53,17 +53,20 @@ array_t init_i32_array(void *data, size_t *shape, size_t ndim, bool owns);
 array_t init_i64_array(void *data, size_t *shape, size_t ndim, bool owns);
 array_t init_f32_array(void *data, size_t *shape, size_t ndim, bool owns);
 array_t init_f64_array(void *data, size_t *shape, size_t ndim, bool owns);
+
 array_t _init_array_with_data_and_strides(int *data, size_t *shape,
                                           size_t *strides, size_t ndim,
                                           bool owns);
-array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value);
+
+// Takes in a 'i32' scalar value, in FUTURE: might coerce to floats
+array_t init_array_with_scalar_value(size_t *shape, size_t ndim, i32 value);
 array_t init_array_with_zeros(size_t *shape, size_t ndim);
 array_t init_array_with_ones(size_t *shape, size_t ndim);
 
 // TODO: maybe implement init_array_with_value({2, 2}, {1, 2})
 // -> [[1, 2], [1, 2]] can pass in non-scalar values
 // NOTE: Always returns a 1D array with integer values populated
-array_t arange(int start, int stop, int step, array_type dtype);
+array_t arange(i32 start, i32 stop, i32 step, array_type dtype);
 
 // Array View Funcions
 // array_t init_array_view(int*data, size)

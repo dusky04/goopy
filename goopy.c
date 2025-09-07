@@ -79,6 +79,7 @@ static inline void _op_div_f64(void *a, void *b, void *c) {
   BINARY_OP(AS_F64(a), AS_F64(b), AS_F64(c), /);
 }
 
+// NOTE: Does this prevent inlining????
 BinaryOpKernel KERNELS[NUM_BINARY_OPS][GOOPY_NUM_TYPES] = {
     [GOOPY_OP_ADD] = {[GOOPY_INT32] = _op_add_i32,
                       [GOOPY_INT64] = _op_add_i64,
@@ -282,10 +283,11 @@ array_t _init_array_with_data_and_strides(int *data, size_t *shape,
 // CHECK: if these 3 functions can be cleaned
 array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value) {
   size_t num_elements = _numel(shape, ndim);
-  int *data = malloc(num_elements * sizeof(int));
-  for (size_t i = 0; i < num_elements; i++)
+  i32 *data = malloc(num_elements * sizeof(i32));
+  for (size_t i = 0; i < num_elements; i++) {
     data[i] = value;
-  return _init_array_with_data(data, shape, ndim, true, GOOPY_INT32);
+  }
+  return _init_array_with_data(data, shape, ndim, GOOPY_INT32, true);
 }
 
 array_t init_array_with_zeros(size_t *shape, size_t ndim) {
@@ -455,82 +457,169 @@ array_t element_wise_div(array_t *a, array_t *b) {
   return element_wise_op(a, b, GOOPY_OP_DIV);
 }
 
-// // TODO: implement getting single element from a array to clean up this
-// // code but VERY MUCH LATER DOWN the LINE
-// static void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
-//                        size_t offset_b, size_t offset_c) {
-//   size_t m = a->shape[a->ndim - 2];
-//   size_t n = a->shape[a->ndim - 1];
-//   size_t q = b->shape[b->ndim - 1];
+// TODO: implement getting single element from a array to clean up this
+// code but VERY MUCH LATER DOWN the LINE
+static inline void _matmul_2D(array_t *a, array_t *b, array_t *c,
+                              size_t offset_a, size_t offset_b,
+                              size_t offset_c) {
+  size_t m = a->shape[a->ndim - 2];
+  size_t n = a->shape[a->ndim - 1];
+  size_t q = b->shape[b->ndim - 1];
 
-//   // iterate over the rows of matrix a
-//   for (size_t i = 0; i < m; i++) {
-//     // iterate over the columns of matrix b
-//     for (size_t j = 0; j < q; j++) {
-//       int sum = 0;
-//       for (size_t k = 0; k < n; k++) {
-//         size_t ai = offset_a + i * a->strides[a->ndim - 2] +
-//                     k * a->strides[a->ndim - 1];
-//         size_t bi = offset_b + k * b->strides[b->ndim - 2] +
-//                     j * b->strides[b->ndim - 1];
-//         sum += a->data[ai] * b->data[bi];
-//       }
+  switch (a->dtype) {
+  case GOOPY_INT32: {
+    i32 *a_ptr = (i32 *)a->data;
+    i32 *b_ptr = (i32 *)b->data;
+    i32 *c_ptr = (i32 *)c->data;
+    // iterate over the rows of matrix a
+    for (size_t i = 0; i < m; i++) {
+      // iterate over the columns of matrix b
+      for (size_t j = 0; j < q; j++) {
+        i32 sum = 0;
+        for (size_t k = 0; k < n; k++) {
+          size_t ai = offset_a + i * a->strides[a->ndim - 2] +
+                      k * a->strides[a->ndim - 1];
+          size_t bi = offset_b + k * b->strides[b->ndim - 2] +
+                      j * b->strides[b->ndim - 1];
 
-//       size_t ci =
-//           offset_c + i * c->strides[c->ndim - 2] + j * c->strides[c->ndim -
-//           1];
-//       c->data[ci] = sum;
-//     }
-//   }
-// }
+          sum += a_ptr[ai] * b_ptr[bi];
+        }
 
-// static void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
-//                     size_t offset_b, size_t offset_c, int depth) {
-//   if (depth == (int)c->ndim - 2) {
-//     _matmul_2D(a, b, c, offset_a, offset_b, offset_c);
-//     return;
-//   }
+        size_t ci = offset_c + i * c->strides[c->ndim - 2] +
+                    j * c->strides[c->ndim - 1];
+        c_ptr[ci] = sum;
+      }
+    }
+    break;
+  }
+  case GOOPY_INT64: {
+    i64 *a_ptr = (i64 *)a->data;
+    i64 *b_ptr = (i64 *)b->data;
+    i64 *c_ptr = (i64 *)c->data;
+    // iterate over the rows of matrix a
+    for (size_t i = 0; i < m; i++) {
+      // iterate over the columns of matrix b
+      for (size_t j = 0; j < q; j++) {
+        i64 sum = 0;
+        for (size_t k = 0; k < n; k++) {
+          size_t ai = offset_a + i * a->strides[a->ndim - 2] +
+                      k * a->strides[a->ndim - 1];
+          size_t bi = offset_b + k * b->strides[b->ndim - 2] +
+                      j * b->strides[b->ndim - 1];
 
-//   // we are at the nth dimension, move over every element in this
-//   // dimension
-//   for (size_t i = 0; i < c->shape[depth]; i++) {
-//     size_t new_offset_a = offset_a + i * a->strides[depth];
-//     size_t new_offset_b = offset_b + i * b->strides[depth];
-//     size_t new_offset_c = offset_c + i * c->strides[depth];
-//     _matmul(a, b, c, new_offset_a, new_offset_b, new_offset_c, depth + 1);
-//   }
-// }
+          sum += a_ptr[ai] * b_ptr[bi];
+        }
 
-// // TODO: research into if this could be made cache-friendlier
-// array_t matmul(array_t *a, array_t *b) {
-//   // shape of cols of mat a should match shape of rows of mat b
-//   size_t m = a->shape[a->ndim - 2];
-//   size_t n = a->shape[a->ndim - 1];
-//   size_t p = b->shape[b->ndim - 2];
-//   size_t q = b->shape[b->ndim - 1];
+        size_t ci = offset_c + i * c->strides[c->ndim - 2] +
+                    j * c->strides[c->ndim - 1];
+        c_ptr[ci] = sum;
+      }
+    }
+    break;
+  }
+  case GOOPY_FLOAT32: {
+    f32 *a_ptr = (f32 *)a->data;
+    f32 *b_ptr = (f32 *)b->data;
+    f32 *c_ptr = (f32 *)c->data;
+    // iterate over the rows of matrix a
+    for (size_t i = 0; i < m; i++) {
+      // iterate over the columns of matrix b
+      for (size_t j = 0; j < q; j++) {
+        f32 sum = 0;
+        for (size_t k = 0; k < n; k++) {
+          size_t ai = offset_a + i * a->strides[a->ndim - 2] +
+                      k * a->strides[a->ndim - 1];
+          size_t bi = offset_b + k * b->strides[b->ndim - 2] +
+                      j * b->strides[b->ndim - 1];
 
-//   if (n != p) {
-//     fprintf(stderr,
-//             "ERROR: Cannot multiply matrices: number of columns in the "
-//             "first "
-//             "matrix (%zu) does not match number of rows in the second "
-//             "matrix "
-//             "(%zu).\n",
-//             n, p);
-//     exit(EXIT_FAILURE);
-//   }
-//   // calculate the new shape
-//   size_t *c_shape = malloc(sizeof(size_t) * a->ndim);
-//   for (size_t i = 0; i < a->ndim - 2; i++)
-//     c_shape[i] = a->shape[i];
-//   c_shape[a->ndim - 2] = m;
-//   c_shape[a->ndim - 1] = q;
-//   array_t c = init_array_with_zeros(c_shape, a->ndim);
+          sum += a_ptr[ai] * b_ptr[bi];
+        }
 
-//   _matmul(a, b, &c, 0, 0, 0, 0);
-//   free(c_shape);
-//   return c;
-// }
+        size_t ci = offset_c + i * c->strides[c->ndim - 2] +
+                    j * c->strides[c->ndim - 1];
+        c_ptr[ci] = sum;
+      }
+    }
+    break;
+  }
+  case GOOPY_FLOAT64: {
+    f64 *a_ptr = (f64 *)a->data;
+    f64 *b_ptr = (f64 *)b->data;
+    f64 *c_ptr = (f64 *)c->data;
+    // iterate over the rows of matrix a
+    for (size_t i = 0; i < m; i++) {
+      // iterate over the columns of matrix b
+      for (size_t j = 0; j < q; j++) {
+        f64 sum = 0;
+        for (size_t k = 0; k < n; k++) {
+          size_t ai = offset_a + i * a->strides[a->ndim - 2] +
+                      k * a->strides[a->ndim - 1];
+          size_t bi = offset_b + k * b->strides[b->ndim - 2] +
+                      j * b->strides[b->ndim - 1];
+
+          sum += a_ptr[ai] * b_ptr[bi];
+        }
+
+        size_t ci = offset_c + i * c->strides[c->ndim - 2] +
+                    j * c->strides[c->ndim - 1];
+        c_ptr[ci] = sum;
+      }
+    }
+    break;
+  }
+  default:
+    fprintf(stderr, "UNKNOWN DATA TYPE\n");
+    exit(EXIT_FAILURE);
+  }
+}
+
+static void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
+                    size_t offset_b, size_t offset_c, int depth) {
+  if (depth == (int)c->ndim - 2) {
+    _matmul_2D(a, b, c, offset_a, offset_b, offset_c);
+    return;
+  }
+
+  // we are at the nth dimension, move over every element in this
+  // dimension
+  for (size_t i = 0; i < c->shape[depth]; i++) {
+    size_t new_offset_a = offset_a + i * a->strides[depth];
+    size_t new_offset_b = offset_b + i * b->strides[depth];
+    size_t new_offset_c = offset_c + i * c->strides[depth];
+    _matmul(a, b, c, new_offset_a, new_offset_b, new_offset_c, depth + 1);
+  }
+}
+
+// TODO: research into if this could be made cache-friendlier
+array_t matmul(array_t *a, array_t *b) {
+  // shape of cols of mat a should match shape of rows of mat b
+  size_t m = a->shape[a->ndim - 2];
+  size_t n = a->shape[a->ndim - 1];
+  size_t p = b->shape[b->ndim - 2];
+  size_t q = b->shape[b->ndim - 1];
+
+  if (n != p) {
+    fprintf(stderr,
+            "ERROR: Cannot multiply matrices: number of columns in the "
+            "first "
+            "matrix (%zu) does not match number of rows in the second "
+            "matrix "
+            "(%zu).\n",
+            n, p);
+    exit(EXIT_FAILURE);
+  }
+  // calculate the new shape
+  size_t *c_shape = malloc(sizeof(size_t) * a->ndim);
+  for (size_t i = 0; i < a->ndim - 2; i++)
+    c_shape[i] = a->shape[i];
+  c_shape[a->ndim - 2] = m;
+  c_shape[a->ndim - 1] = q;
+  array_t c = init_array_with_zeros(c_shape, a->ndim);
+
+  _matmul(a, b, &c, 0, 0, 0, 0);
+  free(c_shape);
+  return c;
+}
 
 // TODO: perhaps return a arrat view
 // or return a new array_t
