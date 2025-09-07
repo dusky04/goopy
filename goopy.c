@@ -288,6 +288,24 @@ array_t init_array_with_ones(size_t *shape, size_t ndim) {
   return init_array_with_scalar_value(shape, ndim, 1);
 }
 
+// array_t arange(int start, int stop, int step, array_type dtype) {
+//   if (stop < start) {
+//     fprintf(stderr,
+//             "ERROR: 'stop' value (%d) must be greater than or equal to "
+//             "'start' "
+//             "value (%d) in arange().\n",
+//             stop, start);
+//   }
+
+//   int num_elements = (int)ceil((float)(stop - start) / (float)step);
+//   void *data = malloc(num_elements * get_size_dtype(dtype));
+//   for (int i = 0; i < num_elements; i++) {
+//     data[i] = start + (i * step);
+//   }
+//   return _init_array_with_data(data, (size_t[]){num_elements}, 1, dtype,
+//   true);
+// }
+
 array_t arange(int start, int stop, int step, array_type dtype) {
   if (stop < start) {
     fprintf(stderr,
@@ -297,13 +315,45 @@ array_t arange(int start, int stop, int step, array_type dtype) {
             stop, start);
   }
 
-  int num_elements = (int)ceil((float)(stop - start) / (float)step);
-  int *data = malloc(num_elements * get_size_dtype(dtype));
-  for (int i = 0; i < num_elements; i++) {
-    data[i] = start + (i * step);
+  size_t num_elements = (size_t)floor((double)(stop - start) / step);
+  void *data = malloc(num_elements * get_size_dtype(dtype));
+
+  switch (dtype) {
+  case GOOPY_INT32: {
+    i32 *typed_data = (i32 *)data;
+    for (size_t i = 0; i < num_elements; i++) {
+      typed_data[i] = (i32)(start + (i * step));
+    }
+    break;
   }
-  return _init_array_with_data(data, (size_t[]){num_elements}, 1, true,
-                               GOOPY_INT32);
+  case GOOPY_INT64: {
+    i64 *typed_data = (i64 *)data;
+    for (size_t i = 0; i < num_elements; i++) {
+      typed_data[i] = (i64)start + ((i64)i * (i64)step);
+    }
+    break;
+  }
+  case GOOPY_FLOAT32: {
+    f32 *typed_data = (f32 *)data;
+    for (size_t i = 0; i < num_elements; i++) {
+      typed_data[i] = (f32)start + ((f32)i * (f32)step);
+    }
+    break;
+  }
+  case GOOPY_FLOAT64: {
+    f64 *typed_data = (f64 *)data;
+    for (size_t i = 0; i < num_elements; i++) {
+      typed_data[i] = (f64)start + ((f64)i * (f64)step);
+    }
+    break;
+  }
+  default:
+    fprintf(stderr, "ERROR: Unsupported data type in arange().\n");
+    free(data);
+    exit(EXIT_FAILURE);
+  }
+
+  return _init_array_with_data(data, (size_t[]){num_elements}, 1, dtype, true);
 }
 
 size_t *_calc_broadcast_shape(array_t *a, array_t *b, size_t c_ndim) {
