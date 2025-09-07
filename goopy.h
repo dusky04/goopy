@@ -13,11 +13,13 @@ typedef enum {
   GOOPY_FLOAT64
 } array_type;
 
+#define GOOPY_TYPES_COUNT 4
+
 // TODO: add dtype
 // All the members need to be explicitly own
 typedef struct {
   // pointer to the data
-  int *data;
+  void *data;
   // represents the dimensions of the data (1D, 2D, ...)
   size_t *shape;
   // the number of bytes to skip in memory to proceed to the next element
@@ -47,7 +49,8 @@ array_t init_array_with_ones(size_t *shape, size_t ndim);
 
 // TODO: maybe implement init_array_with_value({2, 2}, {1, 2})
 // -> [[1, 2], [1, 2]] can pass in non-scalar values
-array_t arange(int start, int stop, int step, array_type dtype); // 1D function
+// NOTE: Always returns a 1D array with integer values populated
+array_t arange(int start, int stop, int step, array_type dtype);
 
 // Array View Funcions
 // array_t init_array_view(int*data, size)

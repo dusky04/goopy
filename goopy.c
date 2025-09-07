@@ -78,6 +78,30 @@ size_t get_size_dtype(array_type dtype) {
 // ----------------------------------------------------------------
 // Formatting Functions
 
+// introduce a function pointer to handle printing different values
+// NOTE: maybe we can improve this code
+typedef void (*PrinterFn)(void *data, size_t offset);
+
+static inline void _print_i32(void *data, size_t offset) {
+  printf("%d ", ((int32_t *)data)[offset]);
+}
+static inline void _print_i64(void *data, size_t offset) {
+  printf("%ld ", ((int64_t *)data)[offset]);
+}
+static inline void _print_f32(void *data, size_t offset) {
+  printf("%.4f ", ((float *)data)[offset]);
+}
+static inline void _print_f64(void *data, size_t offset) {
+  printf("%.4g ", ((double *)data)[offset]);
+}
+
+static PrinterFn _printers[GOOPY_TYPES_COUNT] = {
+    [GOOPY_INT32] = _print_i32,
+    [GOOPY_INT64] = _print_i64,
+    [GOOPY_FLOAT32] = _print_f32,
+    [GOOPY_FLOAT64] = _print_f64,
+};
+
 // FIX: Switch to a iterative algorithm
 // FIX: Update the array pointer rather than using [] syntax
 void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
@@ -85,9 +109,8 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
     // dimension small enough that we can print each element
     printf("[");
     for (size_t i = 0; i < arr->shape[cur_depth]; i++) {
-      // size_t cur_offset = i + (arr->strides[cur_depth] * offset);
       size_t cur_offset = offset + (arr->strides[cur_depth] * i);
-      printf("%d ", arr->data[cur_offset]);
+      _printers[arr->dtype](arr->data, cur_offset);
     }
     printf("]");
     return;
@@ -102,27 +125,30 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
   printf("]\n");
 }
 
-static void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int depth,
-                                 size_t offset_a, size_t offset_b,
-                                 size_t offset_c, int (*op)(int, int)) {
-  if (depth == (int)c->ndim - 1) {
-    for (size_t i = 0; i < c->shape[depth]; i++) {
-      size_t base_a = offset_a + i * a->strides[depth];
-      size_t base_b = offset_b + i * b->strides[depth];
-      size_t base_c = offset_c + i * c->strides[depth];
-      c->data[base_c] = op(a->data[base_a], b->data[base_b]);
-    }
-    return;
-  }
-  // we are at the nth dimension iterate over all the elements
-  for (size_t i = 0; i < c->shape[depth]; i++) {
-    size_t new_offset_a = offset_a + i * a->strides[depth];
-    size_t new_offset_b = offset_b + i * b->strides[depth];
-    size_t new_offset_c = offset_c + (i * c->strides[depth]);
-    _broadcast_binary_op(a, b, c, depth + 1, new_offset_a, new_offset_b,
-                         new_offset_c, op);
-  }
-}
+// ----------------------------------------------------------------
+
+// static void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int
+// depth,
+//                                  size_t offset_a, size_t offset_b,
+//                                  size_t offset_c, int (*op)(int, int)) {
+//   if (depth == (int)c->ndim - 1) {
+//     for (size_t i = 0; i < c->shape[depth]; i++) {
+//       size_t base_a = offset_a + i * a->strides[depth];
+//       size_t base_b = offset_b + i * b->strides[depth];
+//       size_t base_c = offset_c + i * c->strides[depth];
+//       c->data[base_c] = op(a->data[base_a], b->data[base_b]);
+//     }
+//     return;
+//   }
+//   // we are at the nth dimension iterate over all the elements
+//   for (size_t i = 0; i < c->shape[depth]; i++) {
+//     size_t new_offset_a = offset_a + i * a->strides[depth];
+//     size_t new_offset_b = offset_b + i * b->strides[depth];
+//     size_t new_offset_c = offset_c + (i * c->strides[depth]);
+//     _broadcast_binary_op(a, b, c, depth + 1, new_offset_a, new_offset_b,
+//                          new_offset_c, op);
+//   }
+// }
 
 // ----------------------------------------------------------------
 // Array Initialisation Functions
@@ -208,233 +234,238 @@ size_t *_calc_broadcast_shape(array_t *a, array_t *b, size_t c_ndim) {
   return result_shape;
 }
 
-array_t _init_broadcast_view(array_t *a, size_t *target_shape,
-                             size_t target_ndim) {
-  array_t view = _init_array_with_data(a->data, target_shape, target_ndim,
-                                       false, GOOPY_INT32);
+// array_t _init_broadcast_view(array_t *a, size_t *target_shape,
+//                              size_t target_ndim) {
+//   array_t view = _init_array_with_data(a->data, target_shape, target_ndim,
+//                                        false, GOOPY_INT32);
 
-  for (int i = target_ndim - 1; i >= 0; i--) {
-    int idx = (int)a->ndim - (target_ndim - i);
-    if (idx >= 0) {
-      view.shape[i] = a->shape[idx];
-      view.strides[i] = (a->shape[idx] == 1) ? 0 : a->strides[idx];
-    } else {
-      view.shape[i] = target_shape[i];
-      view.strides[i] = 0;
-    }
-  }
-  return view;
-}
+//   for (int i = target_ndim - 1; i >= 0; i--) {
+//     int idx = (int)a->ndim - (target_ndim - i);
+//     if (idx >= 0) {
+//       view.shape[i] = a->shape[idx];
+//       view.strides[i] = (a->shape[idx] == 1) ? 0 : a->strides[idx];
+//     } else {
+//       view.shape[i] = target_shape[i];
+//       view.strides[i] = 0;
+//     }
+//   }
+//   return view;
+// }
 
-// TODO: implement an efficient broadcasting algorithm
-array_t element_wise_add(array_t *a, array_t *b) {
-  // TODO: Add a check for data types
-  if (_check_equal_shapes(a, b)) {
-    int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-      data[i] = a->data[i] + b->data[i];
-    return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
-  }
+// // TODO: implement an efficient broadcasting algorithm
+// array_t element_wise_add(array_t *a, array_t *b) {
+//   // TODO: Add a check for data types
+//   if (_check_equal_shapes(a, b)) {
+//     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+//     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+//       data[i] = a->data[i] + b->data[i];
+//     return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
+//   }
 
-  if (!_check_broadcastable_shapes(a, b)) {
-    fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
-                    "broadcast together.\n");
-    exit(EXIT_FAILURE);
-  }
+//   if (!_check_broadcastable_shapes(a, b)) {
+//     fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
+//                     "broadcast together.\n");
+//     exit(EXIT_FAILURE);
+//   }
 
-  size_t c_ndim = MAX(a->ndim, b->ndim);
-  size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
+//   size_t c_ndim = MAX(a->ndim, b->ndim);
+//   size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
 
-  array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
-  array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
+//   array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
+//   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
 
-  int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true, GOOPY_INT32);
+//   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
+//   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true,
+//   GOOPY_INT32);
 
-  _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __add);
+//   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __add);
 
-  free(view_a.shape);
-  free(view_a.strides);
-  free(view_b.shape);
-  free(view_b.strides);
-  free(c_shape);
-  return c;
-}
+//   free(view_a.shape);
+//   free(view_a.strides);
+//   free(view_b.shape);
+//   free(view_b.strides);
+//   free(c_shape);
+//   return c;
+// }
 
-array_t element_wise_sub(array_t *a, array_t *b) {
-  if (_check_equal_shapes(a, b)) {
-    int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-      data[i] = a->data[i] - b->data[i];
-    return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
-  }
+// array_t element_wise_sub(array_t *a, array_t *b) {
+//   if (_check_equal_shapes(a, b)) {
+//     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+//     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+//       data[i] = a->data[i] - b->data[i];
+//     return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
+//   }
 
-  if (!_check_broadcastable_shapes(a, b)) {
-    fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
-                    "broadcast together.\n");
-    exit(EXIT_FAILURE);
-  }
+//   if (!_check_broadcastable_shapes(a, b)) {
+//     fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
+//                     "broadcast together.\n");
+//     exit(EXIT_FAILURE);
+//   }
 
-  size_t c_ndim = MAX(a->ndim, b->ndim);
-  size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
+//   size_t c_ndim = MAX(a->ndim, b->ndim);
+//   size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
 
-  array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
-  array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
+//   array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
+//   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
 
-  int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true, GOOPY_INT32);
+//   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
+//   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true,
+//   GOOPY_INT32);
 
-  _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __sub);
+//   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __sub);
 
-  free(view_a.shape);
-  free(view_a.strides);
-  free(view_b.shape);
-  free(view_b.strides);
-  free(c_shape);
-  return c;
-}
+//   free(view_a.shape);
+//   free(view_a.strides);
+//   free(view_b.shape);
+//   free(view_b.strides);
+//   free(c_shape);
+//   return c;
+// }
 
-array_t element_wise_mul(array_t *a, array_t *b) {
-  if (_check_equal_shapes(a, b)) {
-    int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-      data[i] = a->data[i] * b->data[i];
-    return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
-  }
+// array_t element_wise_mul(array_t *a, array_t *b) {
+//   if (_check_equal_shapes(a, b)) {
+//     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+//     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+//       data[i] = a->data[i] * b->data[i];
+//     return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
+//   }
 
-  if (!_check_broadcastable_shapes(a, b)) {
-    fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
-                    "broadcast together.\n");
-    exit(EXIT_FAILURE);
-  }
+//   if (!_check_broadcastable_shapes(a, b)) {
+//     fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
+//                     "broadcast together.\n");
+//     exit(EXIT_FAILURE);
+//   }
 
-  size_t c_ndim = MAX(a->ndim, b->ndim);
-  size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
+//   size_t c_ndim = MAX(a->ndim, b->ndim);
+//   size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
 
-  array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
-  array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
+//   array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
+//   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
 
-  int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true, GOOPY_INT32);
+//   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
+//   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true,
+//   GOOPY_INT32);
 
-  _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __mul);
+//   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __mul);
 
-  free(view_a.shape);
-  free(view_a.strides);
-  free(view_b.shape);
-  free(view_b.strides);
-  free(c_shape);
-  return c;
-}
+//   free(view_a.shape);
+//   free(view_a.strides);
+//   free(view_b.shape);
+//   free(view_b.strides);
+//   free(c_shape);
+//   return c;
+// }
 
-array_t element_wise_div(array_t *a, array_t *b) {
-  if (_check_equal_shapes(a, b)) {
-    int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
-    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
-      data[i] = a->data[i] / b->data[i];
-    return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
-  }
+// array_t element_wise_div(array_t *a, array_t *b) {
+//   if (_check_equal_shapes(a, b)) {
+//     int *data = malloc(sizeof(int) * _numel(a->shape, a->ndim));
+//     for (size_t i = 0; i < _numel(a->shape, a->ndim); i++)
+//       data[i] = a->data[i] / b->data[i];
+//     return _init_array_with_data(data, a->shape, a->ndim, true, GOOPY_INT32);
+//   }
 
-  if (!_check_broadcastable_shapes(a, b)) {
-    fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
-                    "broadcast together.\n");
-    exit(EXIT_FAILURE);
-  }
+//   if (!_check_broadcastable_shapes(a, b)) {
+//     fprintf(stderr, "ERROR: Arrays with incompatible shapes cannot be "
+//                     "broadcast together.\n");
+//     exit(EXIT_FAILURE);
+//   }
 
-  size_t c_ndim = MAX(a->ndim, b->ndim);
-  size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
+//   size_t c_ndim = MAX(a->ndim, b->ndim);
+//   size_t *c_shape = _calc_broadcast_shape(a, b, c_ndim);
 
-  array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
-  array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
+//   array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
+//   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
 
-  int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
-  array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true, GOOPY_INT32);
+//   int *c_data = malloc(sizeof(int) * _numel(c_shape, c_ndim));
+//   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, true,
+//   GOOPY_INT32);
 
-  _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __div);
+//   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, __div);
 
-  free(view_a.shape);
-  free(view_a.strides);
-  free(view_b.shape);
-  free(view_b.strides);
-  free(c_shape);
-  return c;
-}
+//   free(view_a.shape);
+//   free(view_a.strides);
+//   free(view_b.shape);
+//   free(view_b.strides);
+//   free(c_shape);
+//   return c;
+// }
 
-// TODO: implement getting single element from a array to clean up this
-// code but VERY MUCH LATER DOWN the LINE
-static void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
-                       size_t offset_b, size_t offset_c) {
-  size_t m = a->shape[a->ndim - 2];
-  size_t n = a->shape[a->ndim - 1];
-  size_t q = b->shape[b->ndim - 1];
+// // TODO: implement getting single element from a array to clean up this
+// // code but VERY MUCH LATER DOWN the LINE
+// static void _matmul_2D(array_t *a, array_t *b, array_t *c, size_t offset_a,
+//                        size_t offset_b, size_t offset_c) {
+//   size_t m = a->shape[a->ndim - 2];
+//   size_t n = a->shape[a->ndim - 1];
+//   size_t q = b->shape[b->ndim - 1];
 
-  // iterate over the rows of matrix a
-  for (size_t i = 0; i < m; i++) {
-    // iterate over the columns of matrix b
-    for (size_t j = 0; j < q; j++) {
-      int sum = 0;
-      for (size_t k = 0; k < n; k++) {
-        size_t ai = offset_a + i * a->strides[a->ndim - 2] +
-                    k * a->strides[a->ndim - 1];
-        size_t bi = offset_b + k * b->strides[b->ndim - 2] +
-                    j * b->strides[b->ndim - 1];
-        sum += a->data[ai] * b->data[bi];
-      }
+//   // iterate over the rows of matrix a
+//   for (size_t i = 0; i < m; i++) {
+//     // iterate over the columns of matrix b
+//     for (size_t j = 0; j < q; j++) {
+//       int sum = 0;
+//       for (size_t k = 0; k < n; k++) {
+//         size_t ai = offset_a + i * a->strides[a->ndim - 2] +
+//                     k * a->strides[a->ndim - 1];
+//         size_t bi = offset_b + k * b->strides[b->ndim - 2] +
+//                     j * b->strides[b->ndim - 1];
+//         sum += a->data[ai] * b->data[bi];
+//       }
 
-      size_t ci =
-          offset_c + i * c->strides[c->ndim - 2] + j * c->strides[c->ndim - 1];
-      c->data[ci] = sum;
-    }
-  }
-}
+//       size_t ci =
+//           offset_c + i * c->strides[c->ndim - 2] + j * c->strides[c->ndim -
+//           1];
+//       c->data[ci] = sum;
+//     }
+//   }
+// }
 
-static void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
-                    size_t offset_b, size_t offset_c, int depth) {
-  if (depth == (int)c->ndim - 2) {
-    _matmul_2D(a, b, c, offset_a, offset_b, offset_c);
-    return;
-  }
+// static void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
+//                     size_t offset_b, size_t offset_c, int depth) {
+//   if (depth == (int)c->ndim - 2) {
+//     _matmul_2D(a, b, c, offset_a, offset_b, offset_c);
+//     return;
+//   }
 
-  // we are at the nth dimension, move over every element in this
-  // dimension
-  for (size_t i = 0; i < c->shape[depth]; i++) {
-    size_t new_offset_a = offset_a + i * a->strides[depth];
-    size_t new_offset_b = offset_b + i * b->strides[depth];
-    size_t new_offset_c = offset_c + i * c->strides[depth];
-    _matmul(a, b, c, new_offset_a, new_offset_b, new_offset_c, depth + 1);
-  }
-}
+//   // we are at the nth dimension, move over every element in this
+//   // dimension
+//   for (size_t i = 0; i < c->shape[depth]; i++) {
+//     size_t new_offset_a = offset_a + i * a->strides[depth];
+//     size_t new_offset_b = offset_b + i * b->strides[depth];
+//     size_t new_offset_c = offset_c + i * c->strides[depth];
+//     _matmul(a, b, c, new_offset_a, new_offset_b, new_offset_c, depth + 1);
+//   }
+// }
 
-// TODO: research into if this could be made cache-friendlier
-array_t matmul(array_t *a, array_t *b) {
-  // shape of cols of mat a should match shape of rows of mat b
-  size_t m = a->shape[a->ndim - 2];
-  size_t n = a->shape[a->ndim - 1];
-  size_t p = b->shape[b->ndim - 2];
-  size_t q = b->shape[b->ndim - 1];
+// // TODO: research into if this could be made cache-friendlier
+// array_t matmul(array_t *a, array_t *b) {
+//   // shape of cols of mat a should match shape of rows of mat b
+//   size_t m = a->shape[a->ndim - 2];
+//   size_t n = a->shape[a->ndim - 1];
+//   size_t p = b->shape[b->ndim - 2];
+//   size_t q = b->shape[b->ndim - 1];
 
-  if (n != p) {
-    fprintf(stderr,
-            "ERROR: Cannot multiply matrices: number of columns in the "
-            "first "
-            "matrix (%zu) does not match number of rows in the second "
-            "matrix "
-            "(%zu).\n",
-            n, p);
-    exit(EXIT_FAILURE);
-  }
-  // calculate the new shape
-  size_t *c_shape = malloc(sizeof(size_t) * a->ndim);
-  for (size_t i = 0; i < a->ndim - 2; i++)
-    c_shape[i] = a->shape[i];
-  c_shape[a->ndim - 2] = m;
-  c_shape[a->ndim - 1] = q;
-  array_t c = init_array_with_zeros(c_shape, a->ndim);
+//   if (n != p) {
+//     fprintf(stderr,
+//             "ERROR: Cannot multiply matrices: number of columns in the "
+//             "first "
+//             "matrix (%zu) does not match number of rows in the second "
+//             "matrix "
+//             "(%zu).\n",
+//             n, p);
+//     exit(EXIT_FAILURE);
+//   }
+//   // calculate the new shape
+//   size_t *c_shape = malloc(sizeof(size_t) * a->ndim);
+//   for (size_t i = 0; i < a->ndim - 2; i++)
+//     c_shape[i] = a->shape[i];
+//   c_shape[a->ndim - 2] = m;
+//   c_shape[a->ndim - 1] = q;
+//   array_t c = init_array_with_zeros(c_shape, a->ndim);
 
-  _matmul(a, b, &c, 0, 0, 0, 0);
-  free(c_shape);
-  return c;
-}
+//   _matmul(a, b, &c, 0, 0, 0, 0);
+//   free(c_shape);
+//   return c;
+// }
 
 // TODO: perhaps return a arrat view
 // or return a new array_t

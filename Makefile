@@ -7,7 +7,7 @@ all: main $(BUILD)/goopy.o
 main: main.c $(BUILD)/goopy.o
 	$(CC) $(CFLAGS) main.c $(BUILD)/goopy.o -lm -o $@
 
-$(BUILD)/goopy.o: goopy.c | $(BUILD)
+$(BUILD)/goopy.o: goopy.c goopy.h | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD):
