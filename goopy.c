@@ -400,10 +400,12 @@ array_t _init_broadcast_view(array_t *a, size_t *target_shape,
 static array_t element_wise_op(array_t *a, array_t *b, BinaryOps op) {
   // TODO: Add a check for data types
   if (_check_equal_shapes(a, b)) {
-    void *data = malloc(sizeof(a->itemsize) * _numel(a->shape, a->ndim));
+
+    size_t num_elements = _numel(a->shape, a->ndim);
+    void *data = malloc(sizeof(a->itemsize) * num_elements);
 
     size_t itemsize = a->itemsize;
-    for (size_t i = 0; i < _numel(a->shape, a->ndim); i++) {
+    for (size_t i = 0; i < num_elements; i++) {
       void *a_idx = a->data + (itemsize * i);
       void *b_idx = b->data + (itemsize * i);
       void *c_idx = data + (itemsize * i);
