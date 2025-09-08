@@ -23,9 +23,6 @@ void assert_f64_array_equal(array_t *arr, f64 *expected, size_t num_elements) {
 }
 
 int main() {
-  // =================================================================
-  //               ELEMENT-WISE ADDITION TESTS
-  // =================================================================
   printf("--- Testing Element-wise Addition ---\n");
   {
     // Test i32
