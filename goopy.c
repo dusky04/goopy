@@ -264,16 +264,18 @@ array_t init_f64_array(void *data, size_t *shape, size_t ndim, bool owns) {
   return _init_array_with_data(data, shape, ndim, GOOPY_FLOAT64, owns);
 }
 
-array_t init_owned_i32_array(void *data, size_t *shape, size_t ndim) {
-  return _init_array_with_data(data, shape, ndim, GOOPY_INT32, true);
+array_t init_unowned_i32_array(void *data, size_t *shape, size_t ndim) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_INT32, false);
 }
-array_t init_owned_i64_array(void *data, size_t *shape, size_t ndim) {
-  return _init_array_with_data(data, shape, ndim, GOOPY_INT64, true);
+array_t init_unowned_i64_array(void *data, size_t *shape, size_t ndim) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_INT64, false);
 }
-array_t init_owned_f32_array(void *data, size_t *shape, size_t ndim) {
-  return _init_array_with_data(data, shape, ndim, GOOPY_FLOAT64, true);
+array_t init_unowned_f32_array(void *data, size_t *shape, size_t ndim) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_FLOAT32, false);
 }
-array_t init_owned_f64_array(void *data, size_t *shape, size_t ndim);
+array_t init_unowned_f64_array(void *data, size_t *shape, size_t ndim) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_FLOAT64, false);
+}
 
 static array_t _init_array_with_data_and_strides(int *data, size_t *shape,
                                                  size_t *strides, size_t ndim,
@@ -414,10 +416,10 @@ static array_t element_wise_op(array_t *a, array_t *b, BinaryOps op) {
   // TODO: Add a check for data types
   if (_check_equal_shapes(a, b)) {
 
-    size_t num_elements = _numel(a->shape, a->ndim);
-    void *data = malloc(sizeof(a->itemsize) * num_elements);
-
     size_t itemsize = a->itemsize;
+    size_t num_elements = _numel(a->shape, a->ndim);
+    void *data = malloc(itemsize * num_elements);
+
     for (size_t i = 0; i < num_elements; i++) {
       void *a_idx = a->data + (itemsize * i);
       void *b_idx = b->data + (itemsize * i);
@@ -439,7 +441,7 @@ static array_t element_wise_op(array_t *a, array_t *b, BinaryOps op) {
   array_t view_a = _init_broadcast_view(a, c_shape, c_ndim);
   array_t view_b = _init_broadcast_view(b, c_shape, c_ndim);
 
-  void *c_data = malloc(sizeof(a->itemsize) * _numel(c_shape, c_ndim));
+  void *c_data = malloc(a->itemsize * _numel(c_shape, c_ndim));
   array_t c = _init_array_with_data(c_data, c_shape, c_ndim, a->dtype, true);
 
   _broadcast_binary_op(&view_a, &view_b, &c, 0, 0, 0, 0, op);

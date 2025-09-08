@@ -1,6 +1,7 @@
 # Executables
 *.out
 main
+*.o
 
 examples
 lib/

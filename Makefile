@@ -1,8 +1,11 @@
 BUILD=build
+TEST=test
 CC=gcc
 CFLAGS=-Wall -Wextra -g
 
 all: main $(BUILD)/goopy.o
+
+
 
 main: main.c $(BUILD)/goopy.o
 	$(CC) $(CFLAGS) main.c $(BUILD)/goopy.o -lm -o $@

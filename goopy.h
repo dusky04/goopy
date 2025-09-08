@@ -58,10 +58,10 @@ array_t init_f64_array(void *data, size_t *shape, size_t ndim, bool owns);
 
 // These would own the `data` buffer and would have to be cleaned up by the
 // caller by `deinit_array()`
-array_t init_owned_i32_array(void *data, size_t *shape, size_t ndim);
-array_t init_owned_i64_array(void *data, size_t *shape, size_t ndim);
-array_t init_owned_f32_array(void *data, size_t *shape, size_t ndim);
-array_t init_owned_f64_array(void *data, size_t *shape, size_t ndim);
+array_t init_unowned_i32_array(void *data, size_t *shape, size_t ndim);
+array_t init_unowned_i64_array(void *data, size_t *shape, size_t ndim);
+array_t init_unowned_f32_array(void *data, size_t *shape, size_t ndim);
+array_t init_unowned_f64_array(void *data, size_t *shape, size_t ndim);
 
 array_t init_array_with_zeros(size_t *shape, size_t ndim);
 array_t init_array_with_ones(size_t *shape, size_t ndim);
@@ -81,7 +81,9 @@ array_t arange(i32 start, i32 stop, i32 step, array_type dtype);
 array_t _init_broadcast_view(array_t *a, size_t *target_shape,
                              size_t target_ndim);
 
+// -----------------------------------------------------------------------------
 // Arithmetic Functions - supports broadcasting
+
 array_t element_wise_add(array_t *a, array_t *b);
 array_t element_wise_sub(array_t *a, array_t *b);
 array_t element_wise_mul(array_t *a, array_t *b);
@@ -89,21 +91,39 @@ array_t element_wise_div(array_t *a, array_t *b);
 
 array_t matmul(array_t *a, array_t *b); // Does not suppport broadcasting yet
 
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
 // Array Utility Functions
+
 void reshape(array_t *arr, size_t *new_shape, size_t new_ndim);
 void transpose(array_t *arr);
 void flatten(array_t *arr);
 
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
 // Formatting Functions
+
 void _print_array(array_t *arr, size_t cur_depth, size_t offset);
 #define PRINT_ARRAY(arr) _print_array(&arr, 0, 0);
 
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
 // Utility Functions
+
 size_t _numel(size_t *shape, size_t ndim);
 void _calc_array_strides(array_t *arr);
 bool _check_equal_ndims(array_t *a, array_t *b);
 bool _check_equal_shapes(array_t *a, array_t *b);
 bool _check_broadcastable_shapes(array_t *a, array_t *b);
 
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
 // Cleanup Functions
+
 void deinit_array(array_t *arr);
+
+// -----------------------------------------------------------------------------
