@@ -48,20 +48,28 @@ typedef struct {
 // LOOK: Maybe introduce array views which do not own any memory
 // all the memory passed into a view will have to be externally managed
 
+// -----------------------------------------------------------------------------
 // Array Initialisation Functions
+
 array_t init_i32_array(void *data, size_t *shape, size_t ndim, bool owns);
 array_t init_i64_array(void *data, size_t *shape, size_t ndim, bool owns);
 array_t init_f32_array(void *data, size_t *shape, size_t ndim, bool owns);
 array_t init_f64_array(void *data, size_t *shape, size_t ndim, bool owns);
 
-array_t _init_array_with_data_and_strides(int *data, size_t *shape,
-                                          size_t *strides, size_t ndim,
-                                          bool owns);
+// These would own the `data` buffer and would have to be cleaned up by the
+// caller by `deinit_array()`
+array_t init_owned_i32_array(void *data, size_t *shape, size_t ndim);
+array_t init_owned_i64_array(void *data, size_t *shape, size_t ndim);
+array_t init_owned_f32_array(void *data, size_t *shape, size_t ndim);
+array_t init_owned_f64_array(void *data, size_t *shape, size_t ndim);
+
+array_t init_array_with_zeros(size_t *shape, size_t ndim);
+array_t init_array_with_ones(size_t *shape, size_t ndim);
 
 // Takes in a 'i32' scalar value, in FUTURE: might coerce to floats
 array_t init_array_with_scalar_value(size_t *shape, size_t ndim, i32 value);
-array_t init_array_with_zeros(size_t *shape, size_t ndim);
-array_t init_array_with_ones(size_t *shape, size_t ndim);
+
+// -----------------------------------------------------------------------------
 
 // TODO: maybe implement init_array_with_value({2, 2}, {1, 2})
 // -> [[1, 2], [1, 2]] can pass in non-scalar values

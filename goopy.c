@@ -114,7 +114,7 @@ void _calc_array_strides(array_t *arr) {
   // to get to the next element in that dimension
   // for a one dimensional array, it is just the size of the element
   arr->strides[arr->ndim - 1] = 1;
-  for (int i = arr->ndim - 2; i > -1; i--) {
+  for (i32 i = arr->ndim - 2; i > -1; i--) {
     arr->strides[i] = arr->strides[i + 1] * arr->shape[i + 1];
   }
 }
@@ -127,7 +127,7 @@ bool _check_equal_shapes(array_t *a, array_t *b) {
 }
 
 bool _check_broadcastable_shapes(array_t *a, array_t *b) {
-  for (int i = MIN(a->ndim, b->ndim) - 1; i > -1; i--) {
+  for (i32 i = MIN(a->ndim, b->ndim) - 1; i > -1; i--) {
     if (!(a->shape[i] == b->shape[i] || a->shape[i] == 1 || b->shape[i] == 1))
       return false;
   }
@@ -158,16 +158,16 @@ size_t get_size_dtype(array_type dtype) {
 typedef void (*PrinterFn)(void *data, size_t offset);
 
 static inline void _print_i32(void *data, size_t offset) {
-  printf("%d ", ((int32_t *)data)[offset]);
+  printf("%d ", ((i32 *)data)[offset]);
 }
 static inline void _print_i64(void *data, size_t offset) {
-  printf("%ld ", ((int64_t *)data)[offset]);
+  printf("%ld ", ((i64 *)data)[offset]);
 }
 static inline void _print_f32(void *data, size_t offset) {
-  printf("%.4f ", ((float *)data)[offset]);
+  printf("%.4f ", ((f32 *)data)[offset]);
 }
 static inline void _print_f64(void *data, size_t offset) {
-  printf("%.4g ", ((double *)data)[offset]);
+  printf("%.4g ", ((f64 *)data)[offset]);
 }
 
 static PrinterFn _printers[GOOPY_NUM_TYPES] = {
@@ -205,7 +205,7 @@ void _print_array(array_t *arr, size_t cur_depth, size_t offset) {
 static void _broadcast_binary_op(array_t *a, array_t *b, array_t *c, int depth,
                                  size_t offset_a, size_t offset_b,
                                  size_t offset_c, BinaryOps op) {
-  if (depth == (int)c->ndim - 1) {
+  if (depth == (i32)c->ndim - 1) {
     for (size_t i = 0; i < c->shape[depth]; i++) {
       void *base_a = a->data + a->itemsize * (offset_a + i * a->strides[depth]);
       void *base_b = b->data + b->itemsize * (offset_b + i * b->strides[depth]);
@@ -264,9 +264,20 @@ array_t init_f64_array(void *data, size_t *shape, size_t ndim, bool owns) {
   return _init_array_with_data(data, shape, ndim, GOOPY_FLOAT64, owns);
 }
 
-array_t _init_array_with_data_and_strides(int *data, size_t *shape,
-                                          size_t *strides, size_t ndim,
-                                          bool owns) {
+array_t init_owned_i32_array(void *data, size_t *shape, size_t ndim) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_INT32, true);
+}
+array_t init_owned_i64_array(void *data, size_t *shape, size_t ndim) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_INT64, true);
+}
+array_t init_owned_f32_array(void *data, size_t *shape, size_t ndim) {
+  return _init_array_with_data(data, shape, ndim, GOOPY_FLOAT64, true);
+}
+array_t init_owned_f64_array(void *data, size_t *shape, size_t ndim);
+
+static array_t _init_array_with_data_and_strides(int *data, size_t *shape,
+                                                 size_t *strides, size_t ndim,
+                                                 bool owns) {
   array_t arr;
   arr.data = data;
   arr.owns = owns;
@@ -281,7 +292,7 @@ array_t _init_array_with_data_and_strides(int *data, size_t *shape,
 
 // LOOK: not a pretty function, see if something can be done
 // CHECK: if these 3 functions can be cleaned
-array_t init_array_with_scalar_value(size_t *shape, size_t ndim, int value) {
+array_t init_array_with_scalar_value(size_t *shape, size_t ndim, i32 value) {
   size_t num_elements = _numel(shape, ndim);
   i32 *data = malloc(num_elements * sizeof(i32));
   for (size_t i = 0; i < num_elements; i++) {
@@ -316,7 +327,7 @@ array_t init_array_with_ones(size_t *shape, size_t ndim) {
 //   true);
 // }
 
-array_t arange(int start, int stop, int step, array_type dtype) {
+array_t arange(i32 start, i32 stop, i32 step, array_type dtype) {
   if (stop < start) {
     fprintf(stderr,
             "ERROR: 'stop' value (%d) must be greater than or equal to "
@@ -369,9 +380,9 @@ array_t arange(int start, int stop, int step, array_type dtype) {
 size_t *_calc_broadcast_shape(array_t *a, array_t *b, size_t c_ndim) {
   size_t *result_shape = malloc(sizeof(size_t) * c_ndim);
 
-  for (int i = c_ndim - 1; i >= 0; i--) {
-    int a_idx = (int)a->ndim - (c_ndim - i);
-    int b_idx = (int)b->ndim - (c_ndim - i);
+  for (i32 i = c_ndim - 1; i >= 0; i--) {
+    i32 a_idx = (i32)a->ndim - (c_ndim - i);
+    i32 b_idx = (i32)b->ndim - (c_ndim - i);
 
     size_t a_dim = (a_idx >= 0) ? a->shape[a_idx] : 1;
     size_t b_dim = (b_idx >= 0) ? b->shape[b_idx] : 1;
@@ -385,8 +396,8 @@ array_t _init_broadcast_view(array_t *a, size_t *target_shape,
   array_t view = _init_array_with_data(a->data, target_shape, target_ndim,
                                        a->dtype, false);
 
-  for (int i = target_ndim - 1; i >= 0; i--) {
-    int idx = (int)a->ndim - (target_ndim - i);
+  for (i32 i = target_ndim - 1; i >= 0; i--) {
+    i32 idx = (i32)a->ndim - (target_ndim - i);
     if (idx >= 0) {
       view.shape[i] = a->shape[idx];
       view.strides[i] = (a->shape[idx] == 1) ? 0 : a->strides[idx];
@@ -574,8 +585,8 @@ static inline void _matmul_2D(array_t *a, array_t *b, array_t *c,
 }
 
 static void _matmul(array_t *a, array_t *b, array_t *c, size_t offset_a,
-                    size_t offset_b, size_t offset_c, int depth) {
-  if (depth == (int)c->ndim - 2) {
+                    size_t offset_b, size_t offset_c, i32 depth) {
+  if (depth == (i32)c->ndim - 2) {
     _matmul_2D(a, b, c, offset_a, offset_b, offset_c);
     return;
   }
